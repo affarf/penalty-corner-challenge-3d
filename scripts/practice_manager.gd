@@ -18,6 +18,7 @@ enum ShotAim {
 @export var goal_z: float = -16.0
 @export var goal_width: float = 6.0
 @export var goal_height: float = 3.0
+@export var goal_depth: float = 1.8
 
 @onready var ball = get_parent().get_node("Ball3D")
 @onready var attacker1: Node3D = get_parent().get_node("Attacker1")
@@ -110,7 +111,7 @@ func shoot_ball(aerial: bool) -> void:
 	shot_destination = Vector3(
 		get_shot_x(),
 		0.0,
-		goal_z - 1.0
+		goal_z - goal_depth + 0.1
 	)
 
 	shot_arc_height = 0.0
@@ -153,11 +154,12 @@ func check_goal() -> void:
 		shot_destination.x,
 		t
 	)
+	var crossing_height: float = ball.ball_radius
 
-	var crossing_height: float = (
-		ball.ball_radius
-		+ sin(t * PI) * shot_arc_height
-	)
+	if shot_arc_height > 0.0:
+		crossing_height += shot_arc_height * (
+			1.0 - pow(1.0 - t, 3.0)
+		)
 
 	var inside_posts: bool = (
 		absf(crossing_x) + ball.ball_radius
