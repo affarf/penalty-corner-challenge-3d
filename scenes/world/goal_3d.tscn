@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://cvdoqosse2jcf"]
 
-[ext_resource type="Script" uid="uid://2j0x656b82q0" path="res://goal_3d.gd" id="1_x5ubf"]
+[ext_resource type="Script" uid="uid://2j0x656b82q0" path="res://scripts/world/goal_3d.gd" id="1_x5ubf"]
 
 [node name="Goal3D" type="Node3D" unique_id=915879760]
 script = ExtResource("1_x5ubf")
