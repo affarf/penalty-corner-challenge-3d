@@ -64,7 +64,7 @@ func build_player() -> void:
 
 	# Reduce the oversized original model.
 	# Total model height is now roughly 1.75 units.
-	visual_root.scale = Vector3.ONE * 0.78
+	visual_root.scale = Vector3.ONE * 1
 
 	# Torso
 	add_box(

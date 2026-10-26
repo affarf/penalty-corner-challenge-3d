@@ -3,28 +3,7 @@ extends Node3D
 
 
 func _ready() -> void:
-	build_ball()
 	build_camera_and_light()
-
-
-func build_ball() -> void:
-	var ball := MeshInstance3D.new()
-	ball.name = "PrototypeBall"
-
-	var mesh := SphereMesh.new()
-	mesh.radius = 0.22
-	mesh.height = 0.44
-
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color.WHITE
-	material.roughness = 0.8
-
-	ball.mesh = mesh
-	ball.material_override = material
-	ball.position = Vector3(0, 0.22, 6)
-
-	add_child(ball)
-
 
 func build_camera_and_light() -> void:
 	var camera := Camera3D.new()
