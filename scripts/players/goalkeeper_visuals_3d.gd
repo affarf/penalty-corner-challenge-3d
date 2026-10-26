@@ -128,18 +128,49 @@ func build_rig() -> void:
 			glove_color
 		)
 
-	# Stick attached to left arm.
-	make_box(
-		left_arm,
-		Vector3(-0.20, -0.87, 0.22),
-		Vector3(0.075, 0.73, 0.075),
-		Color("#D8BB82")
+
+	# Field hockey stick held by the right glove.
+	# Positive X is the model's right-hand side.
+	var stick_color := Color("#D5B47D")
+	var grip_color := Color("#20252B")
+
+	var stick_pivot := create_pivot(
+		right_arm,
+		"HockeyStick",
+		Vector3(0.10, -0.57, 0.22)
 	)
+
+	# Angle the stick slightly toward the turf.
+	stick_pivot.rotation.z = -0.16
+
+	# Long shaft with an upper grip.
 	make_box(
-		left_arm,
-		Vector3(-0.08, -1.20, 0.22),
-		Vector3(0.32, 0.11, 0.12),
-		Color("#D8BB82")
+		stick_pivot,
+		Vector3(0, -0.39, 0),
+		Vector3(0.075, 0.85, 0.085),
+		stick_color
+	)
+
+	make_box(
+		stick_pivot,
+		Vector3(0, -0.10, 0),
+		Vector3(0.09, 0.22, 0.10),
+		grip_color
+	)
+
+	# Hooked head: heel and rounded toe.
+	make_box(
+		stick_pivot,
+		Vector3(-0.14, -0.80, 0),
+		Vector3(0.34, 0.13, 0.16),
+		stick_color
+	)
+
+	make_sphere(
+		stick_pivot,
+		Vector3(-0.29, -0.80, 0),
+		0.075,
+		stick_color
 	)
 
 	# Hip-mounted leg pivots.

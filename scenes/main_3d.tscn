@@ -31,11 +31,3 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0, -4)
 
 [node name="PracticeManager" type="Node3D" parent="." unique_id=51378534]
 script = ExtResource("7_a6i3j")
-goal_z = null
-goal_width = null
-goal_height = null
-goal_depth = null
-keeper_save_width = null
-keeper_save_depth = null
-keeper_save_height = null
-ai_keeper_speed = null
