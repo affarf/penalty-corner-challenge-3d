@@ -2,6 +2,7 @@
 extends Node3D
 const AttackerAI = preload("res://scripts/ai/attacker_ai.gd")
 const GoalkeeperAI = preload("res://scripts/ai/goalkeeper_ai.gd")
+var goalkeeper_ai = GoalkeeperAI.new()
 enum GameMode {
 	MENU,
 	KEEPER,
@@ -161,7 +162,7 @@ func begin_round() -> void:
 	aim_x = 0.0
 	shot_height = 0.0
 
-	goalkeeper.reset_keeper()
+	goalkeeper_ai.reset()
 
 	var start: Vector3 = (
 		attacker1.position + Vector3(0, 0, -1.0)
@@ -229,6 +230,13 @@ func shoot_ball(aerial: bool) -> void:
 		ball.shot_speed,
 		shot_height
 	)
+	if game_mode == GameMode.ATTACKER:
+		goalkeeper_ai.start_shot(
+			shot_start,
+			shot_destination,
+			goalkeeper,
+			aerial
+		)
 
 	if aerial:
 		set_status("AERIAL SHOT!")
@@ -237,13 +245,12 @@ func shoot_ball(aerial: bool) -> void:
 
 
 func update_ai_keeper(delta: float) -> void:
-	GoalkeeperAI.update_keeper(
+	goalkeeper_ai.update(
 		goalkeeper,
-		shot_start,
-		shot_destination,
-		ai_keeper_speed,
+		ball,
 		delta
 	)
+
 
 
 
@@ -251,26 +258,14 @@ func update_ai_keeper(delta: float) -> void:
 func check_keeper_save() -> void:
 	var ball_pos: Vector3 = ball.position
 	var keeper_pos: Vector3 = goalkeeper.position
-	
+
+	# No saves after the ball is fully behind the line.
 	if ball_pos.z + ball.ball_radius < goal_z:
 		return
 
-	var save_width: float
-	var save_height: float
-	
-	# Do not allow saves once the ball has fully crossed
-# behind the goal line.
-
-
-	if game_mode == GameMode.KEEPER:
-		# Human keeper must actively time saves.
-		save_width = goalkeeper.get_save_width()
-		save_height = goalkeeper.get_save_height()
-
-	else:
-		# Preserve automatic save detection for AI keeper.
-		save_width = keeper_save_width
-		save_height = keeper_save_height
+	# Both human and AI use identical save reach.
+	var save_width: float = goalkeeper.get_save_width()
+	var save_height: float = goalkeeper.get_save_height()
 
 	if save_width <= 0.0 or save_height <= 0.0:
 		return
@@ -289,13 +284,12 @@ func check_keeper_save() -> void:
 		ball.get_ball_height() - ball.ball_radius
 	)
 
-	var reachable: bool = (
-		ball_bottom <= save_height
-	)
+	var reachable: bool = ball_bottom <= save_height
 
 	if close_x and close_z and reachable:
 		deflect_saved_ball()
 		finish_round("SAVE!")
+
 
 
 
