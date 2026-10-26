@@ -1,6 +1,7 @@
 
 extends Node3D
-
+const AttackerAI = preload("res://scripts/ai/attacker_ai.gd")
+const GoalkeeperAI = preload("res://scripts/ai/goalkeeper_ai.gd")
 enum GameMode {
 	MENU,
 	KEEPER,
@@ -184,10 +185,10 @@ func advance_timer() -> void:
 
 	elif phase == Phase.READY_TO_SHOOT:
 		if game_mode == GameMode.KEEPER:
-			var aerial: bool = randf() < 0.35
-			aim_x = [-2.2, 0.0, 2.2].pick_random()
-			shoot_ball(aerial)
-
+			var shot: Dictionary = AttackerAI.choose_shot()
+			aim_x = float(shot["target_x"])
+			shoot_ball(bool(shot["aerial"]))
+			
 	elif phase == Phase.FINISHED:
 		begin_round()
 
@@ -236,29 +237,14 @@ func shoot_ball(aerial: bool) -> void:
 
 
 func update_ai_keeper(delta: float) -> void:
-	# Simple AI: move toward the predicted shot line.
-	# The goalkeeper only moves sideways for now.
-	var dz: float = shot_destination.z - shot_start.z
-	if absf(dz) < 0.001:
-		return
-
-	var t: float = clampf(
-		(goalkeeper.position.z - shot_start.z) / dz,
-		0.0,
-		1.0
+	GoalkeeperAI.update_keeper(
+		goalkeeper,
+		shot_start,
+		shot_destination,
+		ai_keeper_speed,
+		delta
 	)
 
-	var target_x: float = lerpf(
-		shot_start.x,
-		shot_destination.x,
-		t
-	)
-
-	goalkeeper.position.x = move_toward(
-		goalkeeper.position.x,
-		target_x,
-		ai_keeper_speed * delta
-	)
 
 
 
@@ -308,7 +294,7 @@ func check_keeper_save() -> void:
 	)
 
 	if close_x and close_z and reachable:
-		ball.stop_ball()
+		deflect_saved_ball()
 		finish_round("SAVE!")
 
 
@@ -441,3 +427,38 @@ func create_hud() -> void:
 	hud_label = Label.new()
 	hud_label.add_theme_font_size_override("font_size", 20)
 	margin.add_child(hud_label)
+	
+	
+func deflect_saved_ball() -> void:
+	var ball_position: Vector3 = ball.position
+	var keeper_position: Vector3 = goalkeeper.position
+
+	# Push the ball away from our goal (positive Z).
+	# Also send it sideways for a visible deflection.
+	var side: float = 1.0
+
+	if ball_position.x < keeper_position.x:
+		side = -1.0
+
+	var destination := Vector3(
+		clampf(
+			ball_position.x + side * 3.0,
+			-10.5,
+			10.5
+		),
+		0.0,
+		clampf(
+			ball_position.z + 5.0,
+			-18.0,
+			18.0
+		)
+	)
+
+	# Stop the original shot, then send the ball away.
+	ball.stop_ball()
+
+	ball.move_to(
+		destination,
+		ball.pass_speed * 0.85,
+		0.0
+	)
