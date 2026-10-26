@@ -3,6 +3,8 @@
 [ext_resource type="Script" uid="uid://fcki572wbygj" path="res://scripts/main_3d.gd" id="1_pt58c"]
 [ext_resource type="PackedScene" uid="uid://cvdoqosse2jcf" path="res://scenes/world/goal_3d.tscn" id="2_ndnd3"]
 [ext_resource type="PackedScene" uid="uid://c7hk5kpkr3dbd" path="res://scenes/world/pitch_3d.tscn" id="3_kefov"]
+[ext_resource type="PackedScene" uid="uid://bis2bfs16no5n" path="res://scenes/players/player_3d.tscn" id="4_le0cj"]
+[ext_resource type="PackedScene" uid="uid://b07ks1npamgy1" path="res://scenes/players/goalkeeper_3d.tscn" id="5_78blk"]
 
 [node name="Prototype3D" type="Node3D" unique_id=2026045853]
 script = ExtResource("1_pt58c")
@@ -11,3 +13,12 @@ script = ExtResource("1_pt58c")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -16)
 
 [node name="Pitch3D" parent="." unique_id=2026071934 instance=ExtResource("3_kefov")]
+
+[node name="Attacker1" parent="." unique_id=359548197 instance=ExtResource("4_le0cj")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 7)
+
+[node name="Attacker2" parent="." unique_id=1811710993 instance=ExtResource("4_le0cj")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 8)
+
+[node name="Goalkeeper3D" parent="." unique_id=2044590347 instance=ExtResource("5_78blk")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -15.5)

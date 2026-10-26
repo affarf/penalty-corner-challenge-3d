@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://b07ks1npamgy1"]
+
+[ext_resource type="Script" uid="uid://dg3vhbvtsjvhd" path="res://scripts/players/goalkeeper_3d.gd" id="1_4r8t2"]
+
+[node name="Goalkeeper3D" type="Node3D" unique_id=2044590347]
+script = ExtResource("1_4r8t2")
