@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c7hk5kpkr3dbd"]
+
+[ext_resource type="Script" uid="uid://b50wrei43b8r0" path="res://scripts/world/pitch_3d.gd" id="1_aoyiv"]
+
+[node name="Pitch3d" type="Node3D" unique_id=2026071934]
+script = ExtResource("1_aoyiv")
