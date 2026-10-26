@@ -24,6 +24,7 @@ transform = Transform3D(1.1, 0, 0, 0, 1.1, 0, 0, 0, 1.1, 4, 0, -9)
 
 [node name="Goalkeeper3D" parent="." unique_id=2044590347 instance=ExtResource("5_78blk")]
 transform = Transform3D(1.1, 0, 0, 0, 1.1, 0, 0, 0, 1.1, 0, 0, -15.5)
+dive_distance = 1.5
 
 [node name="Ball3D" parent="." unique_id=1700041622 instance=ExtResource("6_78blk")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0, -4)
