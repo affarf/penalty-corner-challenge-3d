@@ -160,7 +160,7 @@ func begin_round() -> void:
 	aim_x = 0.0
 	shot_height = 0.0
 
-	goalkeeper.position = Vector3(0, 0, -15.5)
+	goalkeeper.reset_keeper()
 
 	var start: Vector3 = (
 		attacker1.position + Vector3(0, 0, -1.0)
@@ -261,26 +261,56 @@ func update_ai_keeper(delta: float) -> void:
 	)
 
 
+
 func check_keeper_save() -> void:
 	var ball_pos: Vector3 = ball.position
 	var keeper_pos: Vector3 = goalkeeper.position
+	
+	if ball_pos.z + ball.ball_radius < goal_z:
+		return
+
+	var save_width: float
+	var save_height: float
+	
+	# Do not allow saves once the ball has fully crossed
+# behind the goal line.
+
+
+	if game_mode == GameMode.KEEPER:
+		# Human keeper must actively time saves.
+		save_width = goalkeeper.get_save_width()
+		save_height = goalkeeper.get_save_height()
+
+	else:
+		# Preserve automatic save detection for AI keeper.
+		save_width = keeper_save_width
+		save_height = keeper_save_height
+
+	if save_width <= 0.0 or save_height <= 0.0:
+		return
 
 	var close_x: bool = (
-		absf(ball_pos.x - keeper_pos.x) <= keeper_save_width
+		absf(ball_pos.x - keeper_pos.x)
+		<= save_width + ball.ball_radius
 	)
 
 	var close_z: bool = (
-		absf(ball_pos.z - keeper_pos.z) <= keeper_save_depth
+		absf(ball_pos.z - keeper_pos.z)
+		<= keeper_save_depth + ball.ball_radius
 	)
 
-	var low_enough: bool = (
+	var ball_bottom: float = (
 		ball.get_ball_height() - ball.ball_radius
-		<= keeper_save_height
 	)
 
-	if close_x and close_z and low_enough:
+	var reachable: bool = (
+		ball_bottom <= save_height
+	)
+
+	if close_x and close_z and reachable:
 		ball.stop_ball()
 		finish_round("SAVE!")
+
 
 
 func check_goal() -> String:
