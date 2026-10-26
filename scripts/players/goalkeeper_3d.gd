@@ -145,6 +145,7 @@ func get_camera_movement(
 	return direction.normalized()
 
 
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not player_controlled:
 		return
@@ -152,18 +153,30 @@ func _unhandled_input(event: InputEvent) -> void:
 	if save_state != SaveState.READY:
 		return
 
-	if game_mode_is_menu():
-		return
-
-	if event is InputEventMouseButton:
-		if not event.pressed:
+	if event is InputEventKey:
+		if not event.pressed or event.echo:
 			return
 
-		if event.button_index == MOUSE_BUTTON_LEFT:
-			start_quick_save()
+		match event.keycode:
+			KEY_J:
+				start_quick_save()
 
-		elif event.button_index == MOUSE_BUTTON_RIGHT:
-			start_dive()
+			KEY_SPACE:
+				# Use the direction currently held.
+				var input_direction := Input.get_vector(
+					"move_left",
+					"move_right",
+					"move_up",
+					"move_down"
+				)
+
+				if input_direction.length() > 0.1:
+					last_move_direction = get_camera_movement(
+						input_direction
+					)
+
+				start_dive()
+
 
 
 func game_mode_is_menu() -> bool:
