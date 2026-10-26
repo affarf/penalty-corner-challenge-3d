@@ -182,3 +182,21 @@ func build_visuals() -> void:
 	shadow_mesh.material_override = shadow_material
 	shadow_mesh.position.y = 0.025
 	add_child(shadow_mesh)
+
+func get_ball_height() -> float:
+	if ball_mesh == null:
+		return ball_radius
+
+	return ball_mesh.position.y
+
+
+func stop_ball() -> void:
+	moving = false
+	dropping = false
+	elapsed = 0.0
+
+	if ball_mesh != null:
+		ball_mesh.position.y = ball_radius
+
+	if shadow_mesh != null:
+		shadow_mesh.scale = Vector3.ONE
