@@ -1,4 +1,3 @@
-
 extends Node
 
 signal ball_intercepted
@@ -8,24 +7,33 @@ signal ball_intercepted
 @export var second_runner_speed: float = 3.8
 @export var coverage_speed: float = 2.8
 
-@export_group("Interception")
-@export var intercept_radius: float = 0.75
-@export var intercept_height: float = 0.60
+@export_group("Spacing")
+@export var minimum_spacing: float = 1.0
+@export var separation_strength: float = 6.0
+
+@export_group("Tackling")
+@export var tackle_trigger_radius: float = 3.2
+@export var tackle_contact_radius: float = 0.9
+@export var intercept_height: float = 0.55
+@export var tackle_cooldown: float = 0.75
+@export var tackle_animation_time: float = 0.40
 
 var defenders: Array[Node3D] = []
 var starting_positions: Array[Vector3] = []
 var targets: Array[Vector3] = []
-
 var stopper: Node3D
 var shooter: Node3D
 var ball: Node3D
-
+var goalkeeper: Node3D
 var goal_z: float = -18.5
-
 var active: bool = false
 var interception_enabled: bool = false
-var last_ball_position: Vector3 = Vector3.ZERO
 
+var tackle_timers: Array[float] = []
+var tackling: Array[bool] = []
+var tackle_enabled_for: Array[bool] = []
+var tackle_action_timers: Array[float] = []
+var tackle_ball_starts: Array[Vector3] = []
 
 func setup(
 	players: Array[Node3D],
@@ -40,13 +48,31 @@ func setup(
 
 	starting_positions.clear()
 	targets.clear()
+	tackle_timers.clear()
+	tackling.clear()
+	tackle_enabled_for.clear()
+	tackle_action_timers.clear()
+	tackle_ball_starts.clear()
 
-	for defender in defenders:
+	for i in range(defenders.size()):
+		var defender := defenders[i]
 		starting_positions.append(defender.position)
 		targets.append(defender.position)
+		tackle_timers.append(0.0)
+		tackling.append(false)
+		tackle_enabled_for.append(false)
+		tackle_action_timers.append(0.0)
+		tackle_ball_starts.append(Vector3.ZERO)
 
-	last_ball_position = ball.position
+		# Connect one contact callback per defender.
+		var callback := _on_tackle_contact.bind(i)
+		if not defender.hockey_contact.is_connected(callback):
+			defender.hockey_contact.connect(callback)
 
+	reset_runners()
+
+func set_goalkeeper(keeper_node: Node3D) -> void:
+	goalkeeper = keeper_node
 
 func reset_runners() -> void:
 	active = false
@@ -55,33 +81,36 @@ func reset_runners() -> void:
 	for i in range(defenders.size()):
 		defenders[i].position = starting_positions[i]
 		defenders[i].set_running(false, 1.0)
-
-	if ball != null:
-		last_ball_position = ball.position
-
+		defenders[i].cancel_hockey_action()
+		targets[i] = starting_positions[i]
+		tackle_timers[i] = 0.0
+		tackling[i] = false
+		tackle_enabled_for[i] = false
+		tackle_action_timers[i] = 0.0
+		tackle_ball_starts[i] = Vector3.ZERO
 
 func release() -> void:
 	if defenders.size() != 4:
 		return
 
 	active = true
-	interception_enabled = true
+	interception_enabled = false
 
-	# The first runner goes toward the stopper.
+	# First runner: pressure stopper.
 	targets[0] = Vector3(
 		stopper.position.x,
 		0.0,
 		maxf(stopper.position.z - 1.2, goal_z + 0.8)
 	)
 
-	# Second runner pressures the shooter.
+	# Second runner: pressure shooter.
 	targets[1] = Vector3(
 		shooter.position.x,
 		0.0,
 		maxf(shooter.position.z - 1.3, goal_z + 0.8)
 	)
 
-	# Third defender protects the passing lane.
+	# Third runner: cover the slip-pass lane.
 	targets[2] = Vector3(
 		(stopper.position.x + shooter.position.x) * 0.5,
 		0.0,
@@ -91,118 +120,242 @@ func release() -> void:
 		)
 	)
 
-	# Fourth defender stays near the right post.
+	# Fourth defender: stay near goal.
+	# Use their actual starting side, not a forced X.
 	targets[3] = Vector3(
-		2.4,
+		starting_positions[3].x,
 		0.0,
 		goal_z + 0.8
 	)
 
-	last_ball_position = ball.position
-
+func enable_interceptions() -> void:
+	interception_enabled = true
+	active = true
 
 func stop_runners() -> void:
 	active = false
 	interception_enabled = false
 
-	for defender in defenders:
-		defender.set_running(false, 0.0)
-
+	for i in range(defenders.size()):
+		defenders[i].set_running(false, 1.0)
+		defenders[i].cancel_hockey_action()
+		tackling[i] = false
+		tackle_enabled_for[i] = false
+		tackle_action_timers[i] = 0.0
 
 func _physics_process(delta: float) -> void:
 	if not active:
 		return
 
-	var all_arrived: bool = true
-
 	for i in range(defenders.size()):
-		var defender: Node3D = defenders[i]
-		var target: Vector3 = targets[i]
+		update_defender(i, delta)
 
-		var speed: float = coverage_speed
+func update_defender(i: int, delta: float) -> void:
+	var defender: Node3D = defenders[i]
 
-		if i == 0:
-			speed = first_runner_speed
-		elif i == 1:
-			speed = second_runner_speed
+	tackle_timers[i] = maxf(
+		0.0,
+		tackle_timers[i] - delta
+	)
 
-		var previous_position: Vector3 = defender.position
+	# Prevent interrupted animations from locking players.
+	if tackling[i]:
+		tackle_action_timers[i] -= delta
+		defender.set_running(false, delta)
 
-		defender.position = defender.position.move_toward(
-			target,
-			speed * delta
-		)
+		if tackle_action_timers[i] <= 0.0:
+			tackling[i] = false
+			tackle_enabled_for[i] = false
+			defender.cancel_hockey_action()
 
-		var is_running: bool = (
-			defender.position.distance_to(previous_position) > 0.001
-		)
+		return
 
-		defender.set_running(is_running, delta)
+	var speed: float = coverage_speed
 
-		if defender.position.distance_to(target) > 0.05:
-			all_arrived = false
+	if i == 0:
+		speed = first_runner_speed
+	elif i == 1:
+		speed = second_runner_speed
+
+	var previous_position: Vector3 = defender.position
+
+	var desired_direction: Vector3 = (
+		targets[i] - defender.position
+	)
+	desired_direction.y = 0.0
+
+	if desired_direction.length() > 0.05:
+		desired_direction = desired_direction.normalized()
+	else:
+		desired_direction = Vector3.ZERO
+
+	var separation: Vector3 = calculate_separation(
+		defender,
+		i
+	)
+
+	var movement: Vector3 = (
+		desired_direction * speed
+		+ separation * separation_strength
+	)
+
+	movement = movement.limit_length(speed)
+
+	defender.position += movement * delta
+	defender.position.y = starting_positions[i].y
+
+	var moved: float = (
+		defender.position.distance_to(previous_position)
+	)
+
+	defender.set_running(moved > 0.001, delta)
 
 	if interception_enabled:
-		check_interception()
+		try_tackle(i)
 
-	if all_arrived:
-		for defender in defenders:
-			defender.set_running(false, delta)
+func calculate_separation(
+	defender: Node3D,
+	self_index: int
+) -> Vector3:
+	var push := Vector3.ZERO
+	var other_players: Array[Node3D] = []
 
+	for j in range(defenders.size()):
+		if j != self_index:
+			other_players.append(defenders[j])
 
-func check_interception() -> void:
-	if ball == null:
-		return
+	# Avoid standing inside attackers or goalkeeper.
+	other_players.append(stopper)
+	other_players.append(shooter)
 
+	if goalkeeper != null:
+		other_players.append(goalkeeper)
+
+	for other in other_players:
+		var offset: Vector3 = (
+			defender.position - other.position
+		)
+		offset.y = 0.0
+		var distance: float = offset.length()
+
+		if distance < minimum_spacing:
+			if distance > 0.001:
+				push += (
+					offset.normalized()
+					* (minimum_spacing - distance)
+				)
+			else:
+				# Deterministic direction for exact overlaps.
+				var side: float = (
+					-1.0 if self_index % 2 == 0 else 1.0
+				)
+				push += Vector3(side, 0.0, 0.3)
+
+	return push
+
+func try_tackle(i: int) -> void:
 	if not ball.moving:
-		last_ball_position = ball.position
 		return
 
-	# Only intercept balls near turf level.
+	if tackle_timers[i] > 0.0 or tackling[i]:
+		return
+
 	var ball_bottom: float = (
 		ball.get_ball_height() - ball.ball_radius
 	)
 
 	if ball_bottom > intercept_height:
-		last_ball_position = ball.position
 		return
 
-	var previous_2d := Vector2(
-		last_ball_position.x,
-		last_ball_position.z
+	var defender: Node3D = defenders[i]
+
+	var distance: float = Vector2(
+		defender.position.x,
+		defender.position.z
+	).distance_to(
+		Vector2(ball.position.x, ball.position.z)
 	)
-	var current_2d := Vector2(
+
+	if distance > tackle_trigger_radius:
+		return
+
+	tackling[i] = true
+	tackle_enabled_for[i] = true
+
+	tackle_timers[i] = tackle_cooldown
+	tackle_action_timers[i] = tackle_animation_time
+
+	# Remember where the ball was when tackling began.
+	tackle_ball_starts[i] = ball.position
+
+	defender.set_running(false, 1.0)
+
+	print("Defender ", i + 1, " attempts tackle")
+
+	defender.play_hockey_action("tackle")
+
+func _on_tackle_contact(
+	action: String,
+	i: int
+) -> void:
+	if action != "tackle":
+		return
+
+	if not active or not interception_enabled:
+		return
+
+	if not tackle_enabled_for[i]:
+		return
+
+	tackle_enabled_for[i] = false
+	tackling[i] = false
+	tackle_action_timers[i] = 0.0
+
+	if not ball.moving:
+		return
+
+	var ball_bottom: float = (
+		ball.get_ball_height() - ball.ball_radius
+	)
+
+	if ball_bottom > intercept_height:
+		return
+
+	var defender: Node3D = defenders[i]
+
+	var defender_point := Vector2(
+		defender.position.x,
+		defender.position.z
+	)
+
+	var ball_start := Vector2(
+		tackle_ball_starts[i].x,
+		tackle_ball_starts[i].z
+	)
+
+	var ball_end := Vector2(
 		ball.position.x,
 		ball.position.z
 	)
 
-	for defender in defenders:
-		var defender_2d := Vector2(
-			defender.position.x,
-			defender.position.z
+	# Check the path travelled during the animation.
+	var closest_point: Vector2 = (
+		Geometry2D.get_closest_point_to_segment(
+			defender_point,
+			ball_start,
+			ball_end
 		)
+	)
 
-		# Check the full ball segment to reduce missed
-		# interceptions when the ball moves quickly.
-		var closest: Vector2 = (
-			Geometry2D.get_closest_point_to_segment(
-				defender_2d,
-				previous_2d,
-				current_2d
-			)
-		)
+	var distance: float = (
+		defender_point.distance_to(closest_point)
+	)
 
-		if defender_2d.distance_to(closest) <= (
-			intercept_radius + ball.ball_radius
-		):
-			active = false
-			interception_enabled = false
-			ball_intercepted.emit()
-			return
+	if distance <= tackle_contact_radius:
+		print("Defender ", i + 1, " BLOCKED!")
 
-	last_ball_position = ball.position
-
-func enable_interceptions() -> void:
-	interception_enabled = true
-	active = true
-	last_ball_position = ball.position
+		active = false
+		interception_enabled = false
+		ball_intercepted.emit()
+	else:
+		print("Defender ", i + 1, " missed tackle")

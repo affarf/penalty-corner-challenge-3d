@@ -402,3 +402,7 @@ func set_running(running: bool, delta: float) -> void:
 			target_bounce,
 			blend
 	)
+
+func cancel_hockey_action() -> void:
+	if player_animator != null:
+		player_animator.cancel_action()

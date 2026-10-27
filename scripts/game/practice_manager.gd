@@ -90,6 +90,9 @@ func _ready() -> void:
 		attacker2,
 		ball
 	)
+	
+	defender_rush.set_goalkeeper(goalkeeper)
+	defender_rush.goal_z = goal.global_position.z
 
 	# 4. Connect signals
 	sequence.status_changed.connect(set_status)

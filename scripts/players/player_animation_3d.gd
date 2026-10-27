@@ -36,6 +36,8 @@ func play_action(action: String) -> void:
 		
 		"shoot":
 			animate_shot()
+		"tackle":
+			animate_tackle()
 
 
 func animate_injection() -> void:
@@ -209,3 +211,50 @@ func animate_shot() -> void:
 		0.0,
 		0.24
 	)
+
+
+func animate_tackle() -> void:
+	# Extend the stick toward the ball.
+	current_tween.tween_property(
+		action_rig,
+		"position",
+		Vector3(0.0, -0.13, 0.32),
+		0.13
+	)
+
+	current_tween.parallel().tween_property(
+		action_rig,
+		"rotation:y",
+		-0.20,
+		0.13
+	)
+
+	# Stick-contact moment.
+	current_tween.tween_callback(
+		func() -> void:
+			contact.emit("tackle")
+	)
+
+	# Pull the stick back.
+	current_tween.tween_property(
+		action_rig,
+		"position",
+		Vector3.ZERO,
+		0.22
+	)
+
+	current_tween.parallel().tween_property(
+		action_rig,
+		"rotation:y",
+		0.0,
+		0.22
+	)
+
+func cancel_action() -> void:
+	if current_tween != null:
+		current_tween.kill()
+		current_tween = null
+
+	if action_rig != null:
+		action_rig.position = Vector3.ZERO
+		action_rig.rotation = Vector3.ZERO
