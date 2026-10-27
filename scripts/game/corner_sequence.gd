@@ -14,6 +14,7 @@ const ShotResolver = preload(
 	"res://scripts/game/shot_resolver.gd"
 )
 signal injection_released
+signal pass_released
 
 enum Phase {
 	IDLE,
@@ -232,6 +233,7 @@ func _on_stopper_contact(action: String) -> void:
 		ball.pass_speed,
 		0.0
 	)
+	pass_released.emit()
 
 
 func _on_ball_finished() -> void:
@@ -370,3 +372,18 @@ func _on_shooter_contact(action: String) -> void:
 		"AERIAL SHOT!"
 		if shot_height > 0.0 else "LOW SHOT!"
 	)
+
+
+func handle_defender_interception() -> void:
+	if phase != Phase.PASSING and phase != Phase.SHOOTING:
+		return
+
+	if not ball.moving:
+		return
+
+	ball.stop_ball()
+
+	phase = Phase.FINISHED
+	action_timer = 0.0
+
+	corner_finished.emit("BLOCK!")

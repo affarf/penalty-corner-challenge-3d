@@ -52,11 +52,14 @@ var round_timer: float = 0.0
 var status_message: String = ""
 
 
+
 func _ready() -> void:
+	# 1. Create HUD
 	hud = PracticeHUD.new()
 	hud.name = "PracticeHUD"
 	add_child(hud)
 
+	# 2. Create CornerSequence
 	sequence = CornerSequence.new()
 	sequence.name = "CornerSequence"
 	add_child(sequence)
@@ -69,10 +72,7 @@ func _ready() -> void:
 		goalkeeper
 	)
 
-	sequence.status_changed.connect(set_status)
-	sequence.corner_finished.connect(_on_corner_finished)
-	
-	
+	# 3. Create DefenderRush BEFORE connecting signals
 	defender_rush = DefenderRush.new()
 	defender_rush.name = "DefenderRush"
 	add_child(defender_rush)
@@ -84,14 +84,32 @@ func _ready() -> void:
 		get_parent().get_node("Defender4")
 	]
 
-	defender_rush.setup(defenders)
+	defender_rush.setup(
+		defenders,
+		attacker1,
+		attacker2,
+		ball
+	)
+
+	# 4. Connect signals
+	sequence.status_changed.connect(set_status)
+	sequence.corner_finished.connect(_on_corner_finished)
 
 	sequence.injection_released.connect(
 		defender_rush.release
 	)
 
+	sequence.pass_released.connect(
+		defender_rush.enable_interceptions
+	)
 
+	defender_rush.ball_intercepted.connect(
+		sequence.handle_defender_interception
+	)
+
+	# 5. Display main menu
 	show_menu()
+
 
 
 func _process(delta: float) -> void:
@@ -221,6 +239,9 @@ func _on_corner_finished(result: String) -> void:
 
 		"MISS!":
 			misses += 1
+		
+		"BLOCK!":
+			saves += 1
 
 	set_status(result + "\nNext round shortly.")
 	round_timer = round_end_delay

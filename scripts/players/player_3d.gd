@@ -20,7 +20,9 @@ signal hockey_contact(action: String)
 var action_rig: Node3D
 var player_animator: Node
 
-
+var left_leg_pivot: Node3D
+var right_leg_pivot: Node3D
+var run_time: float = 0.0
 
 func _ready() -> void:
 	build_player()
@@ -134,43 +136,74 @@ func build_player() -> void:
 	# We construct the player facing local +Z.
 	# Rotating the entire player keeps both hands on the stick.
 
-	# Wider stance, with feet apart.
-	var left_foot := Vector3(-0.39, 0.14, 0.24)
-	var right_foot := Vector3(0.39, 0.14, -0.10)
-
-	add_box(
-		visual_root,
-		left_foot,
-		Vector3(0.34, 0.25, 0.52),
-		legs_color
-	)
-	add_box(
-		visual_root,
-		right_foot,
-		Vector3(0.34, 0.25, 0.52),
-		legs_color
-	)
-
-	# Legs lean into the stance.
+	
+	# Movable legs for procedural running.
 	var left_hip := Vector3(-0.23, 0.91, 0.0)
 	var right_hip := Vector3(0.23, 0.91, 0.0)
 
 	var left_knee := Vector3(-0.37, 0.52, 0.22)
 	var right_knee := Vector3(0.35, 0.53, 0.13)
 
-	for segment in [
-		[left_hip, left_knee],
-		[left_knee, left_foot],
-		[right_hip, right_knee],
-		[right_knee, right_foot]
-	]:
-		add_segment(
-			visual_root,
-			segment[0],
-			segment[1],
-			0.29,
-			legs_color
-		)
+	var left_foot := Vector3(-0.39, 0.14, 0.24)
+	var right_foot := Vector3(0.39, 0.14, -0.10)
+
+	left_leg_pivot = Node3D.new()
+	left_leg_pivot.name = "LeftLeg"
+	left_leg_pivot.position = left_hip
+	visual_root.add_child(left_leg_pivot)
+
+	right_leg_pivot = Node3D.new()
+	right_leg_pivot.name = "RightLeg"
+	right_leg_pivot.position = right_hip
+	visual_root.add_child(right_leg_pivot)
+
+	# Build each leg relative to its hip pivot.
+	add_segment(
+		left_leg_pivot,
+		Vector3.ZERO,
+		left_knee - left_hip,
+		0.29,
+		legs_color
+	)
+
+	add_segment(
+		left_leg_pivot,
+		left_knee - left_hip,
+		left_foot - left_hip,
+		0.29,
+		legs_color
+	)
+
+	add_box(
+		left_leg_pivot,
+		left_foot - left_hip,
+		Vector3(0.34, 0.25, 0.52),
+		legs_color
+	)
+
+	add_segment(
+		right_leg_pivot,
+		Vector3.ZERO,
+		right_knee - right_hip,
+		0.29,
+		legs_color
+	)
+
+	add_segment(
+		right_leg_pivot,
+		right_knee - right_hip,
+		right_foot - right_hip,
+		0.29,
+		legs_color
+	)
+
+	add_box(
+		right_leg_pivot,
+		right_foot - right_hip,
+		Vector3(0.34, 0.25, 0.52),
+		legs_color
+	)
+
 
 	# Lean the torso forward.
 	var body_lean: float = stance * 0.34
@@ -325,4 +358,47 @@ func add_keeper_equipment() -> void:
 		Vector3(0, 1.20, 0.34),
 		Vector3(0.86, 0.76, 0.13),
 		Color("#226AA4")
+	)
+
+
+func set_running(running: bool, delta: float) -> void:
+	if left_leg_pivot == null or right_leg_pivot == null:
+		return
+
+	var target_left: float = 0.0
+	var target_right: float = 0.0
+	var target_bounce: float = 0.0
+
+	if running:
+		run_time += delta * 12.0
+
+		target_left = sin(run_time) * 0.42
+		target_right = -sin(run_time) * 0.42
+
+		target_bounce = absf(sin(run_time)) * 0.07
+
+	else:
+		run_time = 0.0
+
+	var blend: float = clampf(delta * 12.0, 0.0, 1.0)
+
+	# Opposite leg movement.
+	left_leg_pivot.rotation.x = lerpf(
+		left_leg_pivot.rotation.x,
+		target_left,
+		blend
+	)
+
+	right_leg_pivot.rotation.x = lerpf(
+		right_leg_pivot.rotation.x,
+		target_right,
+		blend
+	)
+
+	# Small body bounce.
+	if visual_root != null:
+		visual_root.position.y = lerpf(
+			visual_root.position.y,
+			target_bounce,
+			blend
 	)

@@ -26,7 +26,7 @@ transform = Transform3D(-1.0913262, 0, 0.13786653, 0, 1.1, 0, -0.13786653, 0, -1
 height_scale = 1.2
 
 [node name="Goalkeeper3D" parent="." unique_id=2044590347 instance=ExtResource("5_78blk")]
-transform = Transform3D(1.1, 0, 0, 0, 1.1, 0, 0, 0, 1.1, 1.5, 0, -18)
+transform = Transform3D(1.1, 0, 0, 0, 1.1, 0, 0, 0, 1.1, 1, 0, -19)
 min_z = -20.0
 max_z = -10.0
 dive_distance = 1.5
@@ -43,21 +43,21 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0, -19.5)
 height_scale = 1.25
 
 [node name="Defender1" parent="." unique_id=1709637231 instance=ExtResource("4_le0cj")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 0, -18.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 0, -19)
 shirt_color = Color(0.95686275, 0.77254903, 0.25882354, 1)
 height_scale = 1.2
 
 [node name="Defender2" parent="." unique_id=2130042826 instance=ExtResource("4_le0cj")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, -18.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, -19)
 shirt_color = Color(0.95686275, 0.77254903, 0.25882354, 1)
 height_scale = 1.2
 
 [node name="Defender3" parent="." unique_id=660391153 instance=ExtResource("4_le0cj")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 0, -18.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 0, -19)
 shirt_color = Color(0.95686275, 0.77254903, 0.25882354, 1)
 height_scale = 1.2
 
 [node name="Defender4" parent="." unique_id=810027603 instance=ExtResource("4_le0cj")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.5, 0, -18.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.5, 0, -19)
 shirt_color = Color(0.95686275, 0.77254903, 0.25882354, 1)
 height_scale = 1.2
