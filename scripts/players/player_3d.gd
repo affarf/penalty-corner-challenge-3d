@@ -110,22 +110,50 @@ func build_player() -> void:
 			shirt_color
 		)
 
-	# Left-side stick
+
+	# Field hockey stick on the model's right side.
+	# The shaft is angled toward the ball.
 	var stick_color := Color("#D8BB82")
+	var grip_color := Color("#242424")
 
+	var stick_pivot := Node3D.new()
+	stick_pivot.name = "HockeyStick"
+	stick_pivot.position = Vector3(0.70, 0.92, 0.25)
+	stick_pivot.rotation.z = -0.18
+	visual_root.add_child(stick_pivot)
+
+	# Shaft
 	add_box(
-		visual_root,
-		Vector3(-0.85, 0.65, 0.20),
-		Vector3(0.09, 1.3, 0.09),
+		stick_pivot,
+		Vector3(0, -0.43, 0),
+		Vector3(0.08, 0.90, 0.09),
 		stick_color
 	)
 
+	# Upper grip
 	add_box(
-		visual_root,
-		Vector3(-0.70, 0.12, 0.20),
-		Vector3(0.40, 0.13, 0.11),
+		stick_pivot,
+		Vector3(0, -0.11, 0),
+		Vector3(0.095, 0.24, 0.11),
+		grip_color
+	)
+
+	# Hooked head
+	add_box(
+		stick_pivot,
+		Vector3(-0.15, -0.85, 0),
+		Vector3(0.37, 0.13, 0.16),
 		stick_color
 	)
+
+	# Rounded toe
+	add_sphere(
+		stick_pivot,
+		Vector3(-0.30, -0.85, 0),
+		0.075,
+		stick_color
+	)
+
 
 	if is_goalkeeper:
 		add_keeper_equipment()

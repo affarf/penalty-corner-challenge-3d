@@ -135,7 +135,7 @@ func build_rig() -> void:
 	var grip_color := Color("#20252B")
 
 	var stick_pivot := create_pivot(
-		right_arm,
+		left_arm,
 		"HockeyStick",
 		Vector3(0.10, -0.57, 0.22)
 	)
