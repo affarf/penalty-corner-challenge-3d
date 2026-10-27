@@ -14,6 +14,9 @@ const PracticeHUD = preload(
 	"res://scripts/game/practice_hud.gd"
 )
 
+const CornerSequence = preload(
+	"res://scripts/game/corner_sequence.gd"
+)
 enum GameMode {
 	MENU,
 	KEEPER,
@@ -70,7 +73,7 @@ enum Phase {
 
 var goalkeeper_ai = GoalkeeperAI.new()
 var hud
-
+var corner_sequence
 var game_mode: GameMode = GameMode.MENU
 var phase: Phase = Phase.READY
 
@@ -101,10 +104,27 @@ func _ready() -> void:
 	hud.name = "PracticeHUD"
 	add_child(hud)
 
+	corner_sequence = CornerSequence.new()
+	corner_sequence.name = "CornerSequence"
+	add_child(corner_sequence)
+
+	corner_sequence.setup(
+		ball,
+		injector,
+		attacker1,
+		attacker2
+	)
+
+	corner_sequence.insertion_finished.connect(
+		_on_insertion_finished
+	)
+
+	corner_sequence.pass_finished.connect(
+		_on_pass_finished
+	)
+
 	ball.movement_finished.connect(_on_ball_finished)
-	injector.hockey_contact.connect(_on_injector_contact)
-	attacker1.hockey_contact.connect(_on_stopper_contact)
-	
+
 	show_menu()
 
 
@@ -205,6 +225,7 @@ func start_mode(selected_mode: GameMode) -> void:
 
 
 func show_menu() -> void:
+	corner_sequence.cancel()
 	game_mode = GameMode.MENU
 	phase = Phase.READY
 	countdown = 0.0
@@ -220,9 +241,11 @@ func show_menu() -> void:
 		+ "2 - ATTACKER MODE\n\n"
 		+ "Choose a mode."
 	)
+	
 
 
 func begin_round() -> void:
+	corner_sequence.cancel()
 	if game_mode == GameMode.MENU:
 		return
 
@@ -250,14 +273,11 @@ func begin_round() -> void:
 
 func start_insertion() -> void:
 	phase = Phase.INSERTING
-
 	goalkeeper.release_from_line()
 
 	set_status("INJECTION!")
 
-	# The injector pushes first.
-	# Ball movement begins on stick contact.
-	injector.play_hockey_action("inject")
+	corner_sequence.start_insertion(injection_speed)
 
 
 func advance_timer() -> void:
@@ -290,11 +310,9 @@ func pass_ball() -> void:
 		return
 
 	phase = Phase.PASSING
-
 	set_status("SLIP PASS!")
 
-	# The stopper sweeps the stick first.
-	attacker1.play_hockey_action("pass")
+	corner_sequence.start_pass()
 
 
 
@@ -396,42 +414,20 @@ func _on_ball_finished() -> void:
 	if game_mode == GameMode.MENU:
 		return
 
-	match phase:
-		Phase.INSERTING:
-			attacker1.play_hockey_action("trap")
-			phase = Phase.READY_TO_PASS
+	if phase != Phase.SHOOTING:
+		return
 
-			if game_mode == GameMode.KEEPER:
-				set_status("STOPPED! Preparing slip pass.")
-				countdown = ai_pass_delay
-			else:
-				set_status("Insertion complete! Press E to pass.")
+	var result: String = ShotResolver.check_goal(
+		shot_start,
+		shot_destination,
+		shot_height,
+		ball.ball_radius,
+		goal_z,
+		goal_width,
+		goal_height
+	)
 
-		Phase.PASSING:
-			phase = Phase.READY_TO_SHOOT
-
-			if game_mode == GameMode.KEEPER:
-				set_status("Incoming shot!")
-				countdown = ai_shot_delay
-			else:
-				set_status(
-					"1/2/3 = Aim\n"
-					+ "SPACE = Low shot\n"
-					+ "SHIFT + SPACE = Aerial"
-				)
-
-		Phase.SHOOTING:
-			var result: String = ShotResolver.check_goal(
-				shot_start,
-				shot_destination,
-				shot_height,
-				ball.ball_radius,
-				goal_z,
-				goal_width,
-				goal_height
-			)
-
-			finish_round(result)
+	finish_round(result)
 
 
 func finish_round(result: String) -> void:
@@ -479,38 +475,31 @@ func refresh_hud() -> void:
 		status_message
 	)
 
-func _on_injector_contact(action: String) -> void:
-	if action != "inject":
-		return
-
+func _on_insertion_finished() -> void:
 	if phase != Phase.INSERTING:
 		return
 
-	var stopper_position: Vector3 = (
-		attacker1.position
-		+ Vector3(0, 0, -0.8)
-	)
+	phase = Phase.READY_TO_PASS
 
-	ball.move_to(
-		stopper_position,
-		injection_speed,
-		0.0
-	)
+	if game_mode == GameMode.KEEPER:
+		set_status("STOPPED! Preparing slip pass.")
+		countdown = ai_pass_delay
+	else:
+		set_status("Insertion complete! Press E to pass.")
 
-func _on_stopper_contact(action: String) -> void:
-	if action != "pass":
-		return
 
+func _on_pass_finished() -> void:
 	if phase != Phase.PASSING:
 		return
 
-	var destination: Vector3 = (
-		attacker2.position
-		+ Vector3(0, 0, -0.8)
-	)
+	phase = Phase.READY_TO_SHOOT
 
-	ball.move_to(
-		destination,
-		ball.pass_speed,
-		0.0
-	)
+	if game_mode == GameMode.KEEPER:
+		set_status("Incoming shot!")
+		countdown = ai_shot_delay
+	else:
+		set_status(
+			"1/2/3 = Aim\n"
+			+ "SPACE = Low shot\n"
+			+ "SHIFT + SPACE = Aerial"
+		)
