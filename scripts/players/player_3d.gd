@@ -11,9 +11,41 @@ extends Node3D
 
 var visual_root: Node3D
 
+const PlayerAnimation = preload(
+	"res://scripts/players/player_animation_3d.gd"
+)
+
+signal hockey_contact(action: String)
+
+var action_rig: Node3D
+var player_animator: Node
+
+
 
 func _ready() -> void:
 	build_player()
+
+	player_animator = PlayerAnimation.new()
+	player_animator.name = "PlayerAnimator"
+	add_child(player_animator)
+
+	player_animator.setup(action_rig)
+
+	player_animator.contact.connect(
+		_on_animation_contact
+	)
+
+
+func play_hockey_action(action: String) -> void:
+	if player_animator == null:
+		return
+
+	player_animator.play_action(action)
+
+
+func _on_animation_contact(action: String) -> void:
+	hockey_contact.emit(action)
+
 
 
 func make_material(color: Color) -> StandardMaterial3D:
@@ -161,6 +193,10 @@ func build_player() -> void:
 		0.30,
 		skin
 	)
+	
+	action_rig = Node3D.new()
+	action_rig.name = "ActionRig"
+	visual_root.add_child(action_rig)
 
 	# Stick occupies the space in front of the player.
 	# Left hand high, right hand lower.
@@ -174,7 +210,7 @@ func build_player() -> void:
 	)
 
 	add_segment(
-		visual_root,
+		action_rig,
 		stick_top,
 		stick_heel,
 		0.095,
@@ -188,7 +224,7 @@ func build_player() -> void:
 	)
 
 	add_segment(
-		visual_root,
+		action_rig,
 		stick_top,
 		grip_end,
 		0.105,
@@ -204,7 +240,7 @@ func build_player() -> void:
 	)
 
 	add_segment(
-		visual_root,
+		action_rig,
 		stick_heel,
 		hook_middle,
 		0.14,
@@ -212,7 +248,7 @@ func build_player() -> void:
 	)
 
 	add_segment(
-		visual_root,
+		action_rig,
 		hook_middle,
 		hook_tip,
 		0.13,
@@ -220,7 +256,7 @@ func build_player() -> void:
 	)
 
 	add_sphere(
-		visual_root,
+		action_rig,
 		hook_tip,
 		0.065,
 		stick_color
@@ -228,13 +264,13 @@ func build_player() -> void:
 
 	# Hands are directly positioned on the shaft.
 	add_sphere(
-		visual_root,
+		action_rig,
 		upper_hand,
 		0.13,
 		skin
 	)
 	add_sphere(
-		visual_root,
+		action_rig,
 		lower_hand,
 		0.13,
 		skin
@@ -248,14 +284,14 @@ func build_player() -> void:
 	var right_elbow := Vector3(0.40, 1.13, 0.44)
 
 	add_segment(
-		visual_root,
+		action_rig,
 		left_shoulder,
 		left_elbow,
 		0.23,
 		shirt_color
 	)
 	add_segment(
-		visual_root,
+		action_rig,
 		left_elbow,
 		upper_hand,
 		0.19,
@@ -263,14 +299,14 @@ func build_player() -> void:
 	)
 
 	add_segment(
-		visual_root,
+		action_rig,
 		right_shoulder,
 		right_elbow,
 		0.23,
 		shirt_color
 	)
 	add_segment(
-		visual_root,
+		action_rig,
 		right_elbow,
 		lower_hand,
 		0.19,

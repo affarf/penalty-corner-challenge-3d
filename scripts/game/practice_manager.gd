@@ -39,8 +39,8 @@ enum Phase {
 @export var goal_depth: float = 1.8
 
 @export_group("Insertion")
-@export var injection_x: float = -6.0
-@export var injection_z: float = -16.0
+@export var injection_x: float = -8.0
+@export var injection_z: float = -18.5
 @export var injection_speed: float = 11.0
 
 @export_group("Saves")
@@ -62,6 +62,10 @@ enum Phase {
 )
 @onready var goalkeeper = (
 	get_parent().get_node("Goalkeeper3D")
+)
+
+@onready var injector = (
+	get_parent().get_node("Injector")
 )
 
 var goalkeeper_ai = GoalkeeperAI.new()
@@ -98,6 +102,9 @@ func _ready() -> void:
 	add_child(hud)
 
 	ball.movement_finished.connect(_on_ball_finished)
+	injector.hockey_contact.connect(_on_injector_contact)
+	attacker1.hockey_contact.connect(_on_stopper_contact)
+	
 	show_menu()
 
 
@@ -244,22 +251,13 @@ func begin_round() -> void:
 func start_insertion() -> void:
 	phase = Phase.INSERTING
 
-	# Keeper steps out when the ball is injected.
 	goalkeeper.release_from_line()
 
-	# Insert toward Attacker1, our stopper.
-	var stopper_position: Vector3 = (
-		attacker1.position
-		+ Vector3(0, 0, -0.8)
-	)
+	set_status("INJECTION!")
 
-	ball.move_to(
-		stopper_position,
-		injection_speed,
-		0.0
-	)
-
-	set_status("INSERTION! Ball travelling to stopper.")
+	# The injector pushes first.
+	# Ball movement begins on stick contact.
+	injector.play_hockey_action("inject")
 
 
 func advance_timer() -> void:
@@ -293,18 +291,10 @@ func pass_ball() -> void:
 
 	phase = Phase.PASSING
 
-	var destination: Vector3 = (
-		attacker2.position
-		+ Vector3(0, 0, -0.8)
-	)
-
-	ball.move_to(
-		destination,
-		ball.pass_speed,
-		0.0
-	)
-
 	set_status("SLIP PASS!")
+
+	# The stopper sweeps the stick first.
+	attacker1.play_hockey_action("pass")
 
 
 
@@ -408,6 +398,7 @@ func _on_ball_finished() -> void:
 
 	match phase:
 		Phase.INSERTING:
+			attacker1.play_hockey_action("trap")
 			phase = Phase.READY_TO_PASS
 
 			if game_mode == GameMode.KEEPER:
@@ -486,4 +477,40 @@ func refresh_hud() -> void:
 		saves,
 		misses,
 		status_message
+	)
+
+func _on_injector_contact(action: String) -> void:
+	if action != "inject":
+		return
+
+	if phase != Phase.INSERTING:
+		return
+
+	var stopper_position: Vector3 = (
+		attacker1.position
+		+ Vector3(0, 0, -0.8)
+	)
+
+	ball.move_to(
+		stopper_position,
+		injection_speed,
+		0.0
+	)
+
+func _on_stopper_contact(action: String) -> void:
+	if action != "pass":
+		return
+
+	if phase != Phase.PASSING:
+		return
+
+	var destination: Vector3 = (
+		attacker2.position
+		+ Vector3(0, 0, -0.8)
+	)
+
+	ball.move_to(
+		destination,
+		ball.pass_speed,
+		0.0
 	)

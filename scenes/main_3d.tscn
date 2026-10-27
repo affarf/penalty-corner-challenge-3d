@@ -18,11 +18,11 @@ transform = Transform3D(1.35, 0, 0, 0, 1.35, 0, 0, 0, 1.35, 0, 0, -18)
 transform = Transform3D(1.12, 0, 0, 0, 1.12, 0, 0, 0, 1.12, 0, 0, 0)
 
 [node name="Attacker1" parent="." unique_id=359548197 instance=ExtResource("4_le0cj")]
-transform = Transform3D(1.1, 0, 0, 0, 1.1, 0, 0, 0, 1.1, -3, 0, -7.08)
+transform = Transform3D(-1.0913262, 0, 0.13786653, 0, 1.1, 0, -0.13786653, 0, -1.0913262, -2, 0, -6)
 height_scale = 1.2
 
 [node name="Attacker2" parent="." unique_id=1811710993 instance=ExtResource("4_le0cj")]
-transform = Transform3D(1.1, 0, 0, 0, 1.1, 0, 0, 0, 1.1, 4, 0, -7.08)
+transform = Transform3D(-1.0913262, 0, 0.13786653, 0, 1.1, 0, -0.13786653, 0, -1.0913262, 4, 0, -7.08)
 height_scale = 1.2
 
 [node name="Goalkeeper3D" parent="." unique_id=2044590347 instance=ExtResource("5_78blk")]
@@ -39,7 +39,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0, -4)
 script = ExtResource("7_a6i3j")
 
 [node name="Injector" parent="." unique_id=67532909 instance=ExtResource("4_le0cj")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0, -18.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0, -19.5)
 height_scale = 1.25
 
 [node name="Defender1" parent="." unique_id=1709637231 instance=ExtResource("4_le0cj")]
