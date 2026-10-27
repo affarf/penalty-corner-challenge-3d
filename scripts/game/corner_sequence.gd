@@ -13,6 +13,7 @@ const GoalkeeperAI = preload(
 const ShotResolver = preload(
 	"res://scripts/game/shot_resolver.gd"
 )
+signal injection_released
 
 enum Phase {
 	IDLE,
@@ -67,7 +68,8 @@ func setup(
 	stopper = stopper_node
 	shooter = shooter_node
 	goalkeeper = keeper_node
-
+	
+	shooter.hockey_contact.connect(_on_shooter_contact)
 	injector.hockey_contact.connect(_on_injector_contact)
 	stopper.hockey_contact.connect(_on_stopper_contact)
 	ball.movement_finished.connect(_on_ball_finished)
@@ -158,54 +160,25 @@ func set_aim(value: float) -> void:
 		)
 
 
+
 func request_shot(aerial: bool) -> void:
 	if phase != Phase.READY_TO_SHOOT:
 		return
 
 	phase = Phase.SHOOTING
-	shot_start = ball.position
-
-	var back_z: float = (
-		goal_z - goal_depth
-		+ ball.ball_radius + 0.05
-	)
-
-	shot_destination = Vector3(
-		aim_x, 0.0, back_z
-	)
 
 	shot_height = (
 		ball.aerial_height if aerial else 0.0
 	)
 
-	var expected_result: String = ShotResolver.check_goal(
-		shot_start,
-		shot_destination,
-		shot_height,
-		ball.ball_radius,
-		goal_z,
-		goal_width,
-		goal_height
-	)
-
-	ball.move_to(
-		shot_destination,
-		ball.shot_speed,
-		shot_height,
-		expected_result == "GOAL!"
-	)
-
-	if not automatic_attack:
-		goalkeeper_ai.start_shot(
-			shot_start,
-			shot_destination,
-			goalkeeper,
-			aerial
-		)
-
 	status_changed.emit(
-		"AERIAL SHOT!" if aerial else "LOW SHOT!"
+		"DRAG FLICK WINDUP!"
+		if aerial else "SHOT WINDUP!"
 	)
+
+	# Animate first. The ball moves on contact.
+	shooter.play_hockey_action("shoot")
+
 
 
 func run_automatic_action() -> void:
@@ -239,6 +212,8 @@ func _on_injector_contact(action: String) -> void:
 		injection_speed,
 		0.0
 	)
+	
+	injection_released.emit()
 
 
 func _on_stopper_contact(action: String) -> void:
@@ -338,3 +313,60 @@ func complete_corner(result: String) -> void:
 	phase = Phase.FINISHED
 	action_timer = 0.0
 	corner_finished.emit(result)
+
+
+func _on_shooter_contact(action: String) -> void:
+	if action != "shoot":
+		return
+
+	if phase != Phase.SHOOTING:
+		return
+
+	# Prevent another contact from launching a second shot.
+	if ball.moving:
+		return
+
+	shot_start = ball.position
+
+	var back_z: float = (
+		goal_z
+		- goal_depth
+		+ ball.ball_radius
+		+ 0.05
+	)
+
+	shot_destination = Vector3(
+		aim_x,
+		0.0,
+		back_z
+	)
+
+	var expected_result: String = ShotResolver.check_goal(
+		shot_start,
+		shot_destination,
+		shot_height,
+		ball.ball_radius,
+		goal_z,
+		goal_width,
+		goal_height
+	)
+
+	ball.move_to(
+		shot_destination,
+		ball.shot_speed,
+		shot_height,
+		expected_result == "GOAL!"
+	)
+
+	if not automatic_attack:
+		goalkeeper_ai.start_shot(
+			shot_start,
+			shot_destination,
+			goalkeeper,
+			shot_height > 0.0
+		)
+
+	status_changed.emit(
+		"AERIAL SHOT!"
+		if shot_height > 0.0 else "LOW SHOT!"
+	)

@@ -8,6 +8,10 @@ const PracticeHUD = preload(
 	"res://scripts/game/practice_hud.gd"
 )
 
+const DefenderRush = preload(
+	"res://scripts/ai/defender_rush_3d.gd"
+)
+
 enum GameMode {
 	MENU,
 	KEEPER,
@@ -36,7 +40,7 @@ enum GameMode {
 
 var sequence
 var hud
-
+var defender_rush
 var game_mode: GameMode = GameMode.MENU
 var round_number: int = 0
 
@@ -67,6 +71,25 @@ func _ready() -> void:
 
 	sequence.status_changed.connect(set_status)
 	sequence.corner_finished.connect(_on_corner_finished)
+	
+	
+	defender_rush = DefenderRush.new()
+	defender_rush.name = "DefenderRush"
+	add_child(defender_rush)
+
+	var defenders: Array[Node3D] = [
+		get_parent().get_node("Defender1"),
+		get_parent().get_node("Defender2"),
+		get_parent().get_node("Defender3"),
+		get_parent().get_node("Defender4")
+	]
+
+	defender_rush.setup(defenders)
+
+	sequence.injection_released.connect(
+		defender_rush.release
+	)
+
 
 	show_menu()
 
@@ -143,6 +166,7 @@ func show_menu() -> void:
 	round_timer = 0.0
 
 	sequence.cancel()
+	defender_rush.reset_runners()
 	goalkeeper.player_controlled = false
 	goalkeeper.reset_keeper()
 
@@ -176,6 +200,8 @@ func begin_round() -> void:
 	sequence.ai_pass_delay = ai_pass_delay
 	sequence.ai_shot_delay = ai_shot_delay
 	sequence.save_depth = keeper_save_depth
+	
+	defender_rush.reset_runners()
 
 	sequence.start_corner(
 		game_mode == GameMode.KEEPER
@@ -185,6 +211,7 @@ func begin_round() -> void:
 
 
 func _on_corner_finished(result: String) -> void:
+	defender_rush.stop_runners()
 	match result:
 		"GOAL!":
 			goals += 1

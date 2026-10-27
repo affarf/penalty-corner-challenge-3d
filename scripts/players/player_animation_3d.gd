@@ -33,6 +33,9 @@ func play_action(action: String) -> void:
 
 		"pass":
 			animate_pass()
+		
+		"shoot":
+			animate_shot()
 
 
 func animate_injection() -> void:
@@ -137,4 +140,72 @@ func animate_pass() -> void:
 		"rotation:y",
 		0.0,
 		0.23
+	)
+
+
+func animate_shot() -> void:
+	# Preparation: lower the stick and draw it back.
+	current_tween.tween_property(
+		action_rig,
+		"position",
+		Vector3(0.0, -0.12, -0.22),
+		0.22
+	)
+
+	current_tween.parallel().tween_property(
+		action_rig,
+		"rotation:y",
+		-0.35,
+		0.22
+	)
+
+	# Forward acceleration through the ball.
+	current_tween.tween_property(
+		action_rig,
+		"position",
+		Vector3(0.0, -0.06, 0.34),
+		0.14
+	)
+
+	current_tween.parallel().tween_property(
+		action_rig,
+		"rotation:y",
+		0.25,
+		0.14
+	)
+
+	# The ball leaves the stick here.
+	current_tween.tween_callback(
+		func() -> void:
+			contact.emit("shoot")
+	)
+
+	# Follow-through.
+	current_tween.tween_property(
+		action_rig,
+		"position",
+		Vector3(0.0, 0.16, 0.46),
+		0.16
+	)
+
+	current_tween.parallel().tween_property(
+		action_rig,
+		"rotation:y",
+		0.48,
+		0.16
+	)
+
+	# Return to the ready stance.
+	current_tween.tween_property(
+		action_rig,
+		"position",
+		Vector3.ZERO,
+		0.24
+	)
+
+	current_tween.parallel().tween_property(
+		action_rig,
+		"rotation:y",
+		0.0,
+		0.24
 	)
