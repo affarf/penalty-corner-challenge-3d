@@ -1,17 +1,19 @@
 
 extends Node3D
 
-@export var shirt_color: Color = Color("#F59D38")
+@export var shirt_color: Color = Color("#DC3545")
 @export var is_goalkeeper: bool = false
-@export var height_scale: float = 1.12
+@export_range(0.8, 1.5, 0.02) var height_scale: float = 1.12
+
+@export_group("Hockey Pose")
+@export_range(0.0, 1.0, 0.05) var stance: float = 0.55
+@export var stick_color: Color = Color("#E9D448")
 
 var visual_root: Node3D
 
 
 func _ready() -> void:
 	build_player()
-	if visual_root != null:
-		visual_root.scale = Vector3(1.0, height_scale, 1.0)
 
 
 func make_material(color: Color) -> StandardMaterial3D:
@@ -29,13 +31,11 @@ func add_box(
 ) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	var mesh := BoxMesh.new()
-
 	mesh.size = size
+
 	instance.mesh = mesh
 	instance.position = pos
 	instance.material_override = make_material(color)
-	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-
 	parent.add_child(instance)
 	return instance
 
@@ -48,183 +48,245 @@ func add_sphere(
 ) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	var mesh := SphereMesh.new()
-
 	mesh.radius = radius
 	mesh.height = radius * 2.0
 
 	instance.mesh = mesh
 	instance.position = pos
 	instance.material_override = make_material(color)
-
 	parent.add_child(instance)
 	return instance
+
+
+# Build a rectangular limb connecting two actual points.
+func add_segment(
+	parent: Node3D,
+	from_point: Vector3,
+	to_point: Vector3,
+	thickness: float,
+	color: Color
+) -> void:
+	var direction: Vector3 = to_point - from_point
+	var length: float = direction.length()
+
+	if length < 0.001:
+		return
+
+	var segment := add_box(
+		parent,
+		(from_point + to_point) * 0.5,
+		Vector3(thickness, length, thickness),
+		color
+	)
+
+	segment.quaternion = Quaternion(
+		Vector3.UP,
+		direction.normalized()
+	)
 
 
 func build_player() -> void:
 	visual_root = Node3D.new()
 	visual_root.name = "Visuals"
 	add_child(visual_root)
+	visual_root.scale = Vector3(
+		1.0,
+		height_scale,
+		1.0
+	)
 
-	# Reduce the oversized original model.
-	# Total model height is now roughly 1.75 units.
-	visual_root.scale = Vector3.ONE * 1
+	var skin := Color("#E8D9BA")
+	var legs_color := Color("#F5F5F5")
+	var grip := Color("#22272B")
 
-	# Torso
+	# We construct the player facing local +Z.
+	# Rotating the entire player keeps both hands on the stick.
+
+	# Wider stance, with feet apart.
+	var left_foot := Vector3(-0.39, 0.14, 0.24)
+	var right_foot := Vector3(0.39, 0.14, -0.10)
+
 	add_box(
 		visual_root,
-		Vector3(0, 1.15, 0),
-		Vector3(0.8, 1.0, 0.48),
-		shirt_color
+		left_foot,
+		Vector3(0.34, 0.25, 0.52),
+		legs_color
 	)
-
-	# Head / goalkeeper helmet
-	var head_color := Color("#E8D9BA")
-
-	if is_goalkeeper:
-		head_color = Color("#183E65")
-
-	add_sphere(
+	add_box(
 		visual_root,
-		Vector3(0, 1.92, 0),
-		0.32,
-		head_color
+		right_foot,
+		Vector3(0.34, 0.25, 0.52),
+		legs_color
 	)
 
-	# Legs or goalkeeper pads
-	var leg_color := Color("#F6F6F6")
+	# Legs lean into the stance.
+	var left_hip := Vector3(-0.23, 0.91, 0.0)
+	var right_hip := Vector3(0.23, 0.91, 0.0)
 
-	if is_goalkeeper:
-		leg_color = Color("#E5AA3B")
+	var left_knee := Vector3(-0.37, 0.52, 0.22)
+	var right_knee := Vector3(0.35, 0.53, 0.13)
 
-	for x in [-0.23, 0.23]:
-		add_box(
+	for segment in [
+		[left_hip, left_knee],
+		[left_knee, left_foot],
+		[right_hip, right_knee],
+		[right_knee, right_foot]
+	]:
+		add_segment(
 			visual_root,
-			Vector3(x, 0.42, 0),
-			Vector3(0.30, 0.75, 0.36),
-			leg_color
+			segment[0],
+			segment[1],
+			0.29,
+			legs_color
 		)
 
-		# TWO-HANDED FIELD HOCKEY GRIP
-	# Local +Z is the front of the player.
-	# Both hands stay attached to the stick when rotated.
+	# Lean the torso forward.
+	var body_lean: float = stance * 0.34
+	var torso_root := Node3D.new()
+	torso_root.name = "Torso"
+	torso_root.position = Vector3(0, 1.17, 0.10)
+	torso_root.rotation.x = body_lean
+	visual_root.add_child(torso_root)
 
-	var stick_color := Color("#D8BB82")
-	var grip_color := Color("#242424")
-	var skin_color := Color("#E8D9BA")
-
-	# Arms extending forward
 	add_box(
-		visual_root,
-		Vector3(-0.36, 1.12, 0.28),
-		Vector3(0.25, 0.64, 0.28),
+		torso_root,
+		Vector3.ZERO,
+		Vector3(0.82, 0.90, 0.48),
 		shirt_color
 	)
 
-	add_box(
-		visual_root,
-		Vector3(0.36, 1.00, 0.30),
-		Vector3(0.25, 0.64, 0.28),
-		shirt_color
+	add_sphere(
+		torso_root,
+		Vector3(0, 0.69, 0.03),
+		0.30,
+		skin
 	)
 
-	# Stick shaft: positioned between both hands
-	var stick_pivot := Node3D.new()
-	stick_pivot.name = "HockeyStick"
-	stick_pivot.position = Vector3(0.05, 1.0, 0.42)
-	stick_pivot.rotation.z = 0.13
-	visual_root.add_child(stick_pivot)
+	# Stick occupies the space in front of the player.
+	# Left hand high, right hand lower.
+	var upper_hand := Vector3(-0.10, 1.17, 0.52)
+	var lower_hand := Vector3(0.14, 0.89, 0.66)
+	var stick_heel := Vector3(0.32, 0.13, 0.96)
 
-	add_box(
-		stick_pivot,
-		Vector3(0, -0.47, 0),
-		Vector3(0.075, 1.00, 0.085),
+	# Main shaft: diagonally forward, not vertical.
+	var stick_top := upper_hand + Vector3(
+		-0.10, 0.19, -0.07
+	)
+
+	add_segment(
+		visual_root,
+		stick_top,
+		stick_heel,
+		0.095,
 		stick_color
 	)
 
-	# Upper grip
-	add_box(
-		stick_pivot,
-		Vector3(0, -0.12, 0),
-		Vector3(0.095, 0.26, 0.11),
-		grip_color
+	# Black wrapped grip at the upper portion.
+	var grip_end := stick_top.lerp(
+		stick_heel,
+		0.30
 	)
 
-	# Hooked head
-	add_box(
-		stick_pivot,
-		Vector3(-0.14, -0.93, 0),
-		Vector3(0.34, 0.12, 0.14),
+	add_segment(
+		visual_root,
+		stick_top,
+		grip_end,
+		0.105,
+		grip
+	)
+
+	# Hooked head close to the ground.
+	var hook_middle := stick_heel + Vector3(
+		-0.12, -0.025, 0.06
+	)
+	var hook_tip := stick_heel + Vector3(
+		-0.27, 0.09, 0.09
+	)
+
+	add_segment(
+		visual_root,
+		stick_heel,
+		hook_middle,
+		0.14,
+		stick_color
+	)
+
+	add_segment(
+		visual_root,
+		hook_middle,
+		hook_tip,
+		0.13,
 		stick_color
 	)
 
 	add_sphere(
-		stick_pivot,
-		Vector3(-0.29, -0.93, 0),
-		0.07,
+		visual_root,
+		hook_tip,
+		0.065,
 		stick_color
 	)
 
-	# Left hand at the top of the grip
-	add_box(
-		stick_pivot,
-		Vector3(0, -0.12, 0.02),
-		Vector3(0.20, 0.16, 0.20),
-		skin_color
+	# Hands are directly positioned on the shaft.
+	add_sphere(
+		visual_root,
+		upper_hand,
+		0.13,
+		skin
+	)
+	add_sphere(
+		visual_root,
+		lower_hand,
+		0.13,
+		skin
 	)
 
-	# Right hand lower on the shaft
-	add_box(
-		stick_pivot,
-		Vector3(0, -0.42, 0.02),
-		Vector3(0.20, 0.16, 0.20),
-		skin_color
+	# Arms connect the shoulders to the hands.
+	var left_shoulder := Vector3(-0.45, 1.43, 0.14)
+	var right_shoulder := Vector3(0.45, 1.43, 0.14)
+
+	var left_elbow := Vector3(-0.45, 1.17, 0.36)
+	var right_elbow := Vector3(0.40, 1.13, 0.44)
+
+	add_segment(
+		visual_root,
+		left_shoulder,
+		left_elbow,
+		0.23,
+		shirt_color
+	)
+	add_segment(
+		visual_root,
+		left_elbow,
+		upper_hand,
+		0.19,
+		skin
 	)
 
+	add_segment(
+		visual_root,
+		right_shoulder,
+		right_elbow,
+		0.23,
+		shirt_color
+	)
+	add_segment(
+		visual_root,
+		right_elbow,
+		lower_hand,
+		0.19,
+		skin
+	)
 
 	if is_goalkeeper:
 		add_keeper_equipment()
 
 
 func add_keeper_equipment() -> void:
-	var pad_color := Color("#E5AA3B")
-	var glove_color := Color("#F3C75B")
-
-	# Chest protector
+	# Compatibility for a generic goalkeeper model.
+	# Your dedicated goalkeeper scene uses its own rig.
 	add_box(
 		visual_root,
-		Vector3(0, 1.16, 0.27),
-		Vector3(0.84, 0.85, 0.18),
+		Vector3(0, 1.20, 0.34),
+		Vector3(0.86, 0.76, 0.13),
 		Color("#226AA4")
-	)
-
-	# Kickers
-	for x in [-0.23, 0.23]:
-		add_box(
-			visual_root,
-			Vector3(x, 0.13, 0.18),
-			Vector3(0.38, 0.25, 0.62),
-			pad_color
-		)
-
-	# Gloves
-	add_box(
-		visual_root,
-		Vector3(-0.59, 0.90, 0.15),
-		Vector3(0.32, 0.33, 0.34),
-		glove_color
-	)
-
-	add_box(
-		visual_root,
-		Vector3(0.59, 0.90, 0.15),
-		Vector3(0.36, 0.36, 0.40),
-		glove_color
-	)
-
-	# Helmet visor
-	add_box(
-		visual_root,
-		Vector3(0, 1.95, 0.29),
-		Vector3(0.42, 0.18, 0.07),
-		Color("#111827")
 	)
