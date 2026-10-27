@@ -210,7 +210,7 @@ func _on_injector_contact(action: String) -> void:
 
 	ball.move_to(
 		destination,
-		injection_speed,
+		19,
 		0.0
 	)
 	
@@ -374,6 +374,7 @@ func _on_shooter_contact(action: String) -> void:
 	)
 
 
+
 func handle_defender_interception() -> void:
 	if phase != Phase.PASSING and phase != Phase.SHOOTING:
 		return
@@ -381,9 +382,69 @@ func handle_defender_interception() -> void:
 	if not ball.moving:
 		return
 
-	ball.stop_ball()
+	var contact_position: Vector3 = ball.position
+
+	# Choose the clearance direction.
+	# Positive Z moves away from our goal.
+	var side: float = 1.0
+
+	if contact_position.x > 0.0:
+		side = -1.0
+
+	var rebound_direction := Vector3(
+		side * 0.65,
+		0.0,
+		1.0
+	).normalized()
+
+	# Add a slight variation so every
+	# interception doesn't look identical.
+	rebound_direction.x += randf_range(-0.12, 0.12)
+	rebound_direction = rebound_direction.normalized()
+
+	var rebound_distance: float = randf_range(
+		2.5,
+		4.0
+	)
+
+	var rebound_target: Vector3 = (
+		contact_position
+		+ rebound_direction * rebound_distance
+	)
+
+	# Keep the ball inside our arena.
+	rebound_target.x = clampf(
+		rebound_target.x,
+		-11.0,
+		11.0
+	)
+
+	rebound_target.z = clampf(
+		rebound_target.z,
+		-18.0,
+		5.0
+	)
+
+	# End the active play before moving the
+	# ball, preventing the rebound from being
+	# interpreted as another shot or pass.
+	
+	var blocked_pass: bool = (
+	phase == Phase.PASSING )
 
 	phase = Phase.FINISHED
 	action_timer = 0.0
 
-	corner_finished.emit("BLOCK!")
+	ball.stop_ball()
+
+	# Play a short ground-level rebound.
+	ball.move_to(
+		rebound_target,
+		10.0,
+		0.0
+	)
+
+	if blocked_pass:
+		corner_finished.emit("INTERCEPTED!")
+	else:
+		corner_finished.emit("BLOCK!")

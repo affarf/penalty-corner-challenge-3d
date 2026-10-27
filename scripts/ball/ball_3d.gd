@@ -5,7 +5,7 @@ class_name PracticeBall3D
 signal movement_finished
 
 @export var ball_radius: float = 0.22
-@export var pass_speed: float = 12.0
+@export var pass_speed: float = 19.0
 @export var shot_speed: float = 20.0
 @export var aerial_height: float = 2.0
 @export var drop_duration: float = 0.35

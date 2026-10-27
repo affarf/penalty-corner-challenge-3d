@@ -4,9 +4,9 @@ extends Node
 signal ball_intercepted
 
 @export_group("Movement")
-@export var first_runner_speed: float = 7.0
-@export var second_runner_speed: float = 5.8
-@export var coverage_speed: float = 4.5
+@export var first_runner_speed: float = 4.5
+@export var second_runner_speed: float = 3.8
+@export var coverage_speed: float = 2.8
 
 @export_group("Interception")
 @export var intercept_radius: float = 0.75
