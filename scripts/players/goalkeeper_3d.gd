@@ -29,8 +29,8 @@ enum SaveState {
 @export var quick_save_duration: float = 0.30
 @export var recovery_duration: float = 0.55
 
-@export var ready_z: float = -17.0
-@export var defending_z: float = -15.0
+@export var ready_z: float = -18.5
+@export var defending_z: float = -1.0
 @export var step_out_speed: float = 5.0
 
 var stepping_out: bool = false
@@ -77,15 +77,24 @@ func _physics_process(delta: float) -> void:
 			step_out_speed * delta
 		)
 
-		if absf(position.z - defending_z) < 0.02:
+		if is_equal_approx(position.z, defending_z):
 			position.z = defending_z
 			stepping_out = false
 
-		update_save_visuals(delta)
-		return
-	
-	update_save_state(delta)
-	update_save_visuals(delta)
+		# Only keep the automatic movement lock for AI.
+		# Human players can regain control immediately.
+		if not player_controlled:
+			update_save_state(delta)
+			update_save_visuals(delta)
+			return
+
+		if Input.get_vector(
+			"move_left",
+			"move_right",
+			"move_up",
+			"move_down"
+		).length() > 0.1:
+			stepping_out = false
 
 	if not player_controlled:
 		move_velocity = Vector3.ZERO
@@ -360,7 +369,7 @@ func reset_keeper() -> void:
 	action_timer = 0.0
 	move_velocity = Vector3.ZERO
 
-	position = Vector3(0, 0, ready_z)
+	position = Vector3(0.5, 0, ready_z)
 	last_move_direction = Vector3.RIGHT
 
 	stepping_out = false

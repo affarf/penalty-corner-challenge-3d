@@ -37,7 +37,7 @@ enum Phase {
 @export var goal_depth: float = 1.8
 
 @export_group("Insertion")
-@export var injection_x: float = 9.0
+@export var injection_x: float = -6.0
 @export var injection_z: float = -16.0
 @export var injection_speed: float = 11.0
 

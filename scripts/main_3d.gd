@@ -10,10 +10,12 @@ func build_camera_and_light() -> void:
 	camera.name = "GameCamera"
 	add_child(camera)
 
-	camera.position = Vector3(27, 32, 34)
+	var focus := Vector3(0, 0, -7.5)
+
+	camera.position = focus + Vector3(27, 32, 34)
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 30.0
-	camera.look_at(Vector3.ZERO, Vector3.UP)
+	camera.size = 29
+	camera.look_at(focus, Vector3.UP)
 	camera.current = true
 
 	var sun := DirectionalLight3D.new()

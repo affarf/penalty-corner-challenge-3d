@@ -1,9 +1,19 @@
 
 extends Node3D
 
-const FIELD_WIDTH := 24.0
-const FIELD_LENGTH := 38.0
-const GOAL_Z := -16.0
+@export_group("Arena")
+@export var field_width: float = 28.0
+@export var field_length: float = 27.0
+@export var field_center_z: float = -7.0
+
+@export_group("Markings")
+@export var goal_z: float = -16.0
+@export var circle_radius: float = 10
+@export var penalty_spot_z: float = -11
+
+var turf_color := Color("#23815A")
+var stripe_color := Color("#1D7553")
+var line_color := Color.WHITE
 
 
 func _ready() -> void:
@@ -35,117 +45,112 @@ func add_box(
 	return instance
 
 
-func add_sphere(
-	parent: Node3D,
-	pos: Vector3,
-	radius: float,
-	color: Color
-) -> MeshInstance3D:
-	var instance := MeshInstance3D.new()
-	var mesh := SphereMesh.new()
-
-	mesh.radius = radius
-	mesh.height = radius * 2.0
-
-	instance.mesh = mesh
-	instance.position = pos
-	instance.material_override = make_material(color)
-
-	parent.add_child(instance)
-	return instance
-
-
-func add_field_line(start: Vector3, end: Vector3) -> void:
+func add_line(start: Vector3, end: Vector3) -> void:
 	var difference := end - start
-	var middle := (start + end) / 2.0
+	var length := difference.length()
+
+	if length < 0.001:
+		return
 
 	var line := add_box(
 		self,
-		middle,
-		Vector3(0.09, 0.025, difference.length()),
-		Color.WHITE
+		(start + end) * 0.5,
+		Vector3(0.085, 0.025, length),
+		line_color
 	)
 
-	line.rotation.y = atan2(difference.x, difference.z)
+	line.rotation.y = atan2(
+		difference.x,
+		difference.z
+	)
 
 
 func build_pitch() -> void:
-	# Main pitch
+	var min_z := field_center_z - field_length * 0.5
+	var max_z := field_center_z + field_length * 0.5
+	var half_width := field_width * 0.5
+
+	# Turf foundation
 	add_box(
 		self,
-		Vector3(0, -0.13, 0),
-		Vector3(FIELD_WIDTH, 0.2, FIELD_LENGTH),
+		Vector3(0, -0.13, field_center_z),
+		Vector3(field_width, 0.2, field_length),
 		Color("#186A4B")
 	)
 
-	# Turf stripes
-	for i in range(8):
-		var z := -16.625 + float(i) * 4.75
-		var stripe_color := Color("#23815A")
+	# Alternating turf stripes
+	var stripe_count := 6
+	var stripe_length := field_length / float(stripe_count)
 
+	for i in range(stripe_count):
+		var z := (
+			min_z
+			+ stripe_length * (float(i) + 0.5)
+		)
+
+		var color := turf_color
 		if i % 2 == 0:
-			stripe_color = Color("#1D7553")
+			color = stripe_color
 
 		add_box(
 			self,
 			Vector3(0, -0.018, z),
-			Vector3(FIELD_WIDTH, 0.02, 4.75),
-			stripe_color
+			Vector3(field_width, 0.02, stripe_length),
+			color
 		)
 
-	# Field boundaries
-	add_field_line(
-		Vector3(-12, 0.01, -19),
-		Vector3(12, 0.01, -19)
+	# Outer boundary
+	add_line(
+		Vector3(-half_width, 0.035, min_z),
+		Vector3(half_width, 0.035, min_z)
 	)
 
-	add_field_line(
-		Vector3(-12, 0.01, 19),
-		Vector3(12, 0.01, 19)
+	add_line(
+		Vector3(-half_width, 0.035, max_z),
+		Vector3(half_width, 0.035, max_z)
 	)
 
-	add_field_line(
-		Vector3(-12, 0.01, -19),
-		Vector3(-12, 0.01, 19)
+	add_line(
+		Vector3(-half_width, 0.035, min_z),
+		Vector3(-half_width, 0.035, max_z)
 	)
 
-	add_field_line(
-		Vector3(12, 0.01, -19),
-		Vector3(12, 0.01, 19)
+	add_line(
+		Vector3(half_width, 0.035, min_z),
+		Vector3(half_width, 0.035, max_z)
 	)
 
-	# Goal backline
-	add_field_line(
-		Vector3(-12, 0.025, GOAL_Z),
-		Vector3(12, 0.025, GOAL_Z)
+	# Goal/backline
+	add_line(
+		Vector3(-half_width, 0.05, goal_z),
+		Vector3(half_width, 0.05, goal_z)
 	)
 
-	# Shooting circle
-	var radius := 8.0
-	var segments := 48
+	# Simplified D for the prototype
+	var segments := 64
 
 	for i in range(segments):
-		var a: float = PI * float(i) / segments
-		var b: float = PI * float(i + 1) / segments
+		var a := PI * float(i) / float(segments)
+		var b := PI * float(i + 1) / float(segments)
 
 		var start := Vector3(
-			cos(a) * radius,
-			0.04,
-			GOAL_Z + sin(a) * radius
+			cos(a) * circle_radius,
+			0.055,
+			goal_z + sin(a) * circle_radius
 		)
 
 		var end := Vector3(
-			cos(b) * radius,
-			0.04,
-			GOAL_Z + sin(b) * radius
+			cos(b) * circle_radius,
+			0.055,
+			goal_z + sin(b) * circle_radius
 		)
 
-		add_field_line(start, end)
+		add_line(start, end)
 
-	# Penalty spot
-	add_sphere(
+	# Penalty spot marker
+	add_box(
 		self,
-		Vector3(0, 0.05, -12),
-		0.14,
-		Color.WHITE
+		Vector3(0, 0.055, penalty_spot_z),
+		Vector3(0.18, 0.025, 0.18),
+		line_color
 	)
