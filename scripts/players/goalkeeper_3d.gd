@@ -16,6 +16,7 @@ enum SaveState {
 @export var movement_speed: float = 5.5
 @export var movement_acceleration: float = 20.0
 @export var movement_deceleration: float = 25.0
+@export var keeper_height_scale: float = 1.2
 
 @export_group("Goalkeeper Area")
 @export var min_x: float = -4.5
@@ -67,6 +68,8 @@ func _ready() -> void:
 	keeper_rig = KeeperVisuals.new()
 	keeper_rig.name = "KeeperVisuals"
 	add_child(keeper_rig)
+	
+	keeper_rig.scale = Vector3(1.0, keeper_height_scale, 1.0)
 
 	camera = get_viewport().get_camera_3d()
 

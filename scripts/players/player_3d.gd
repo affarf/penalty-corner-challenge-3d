@@ -3,12 +3,15 @@ extends Node3D
 
 @export var shirt_color: Color = Color("#F59D38")
 @export var is_goalkeeper: bool = false
+@export var height_scale: float = 1.12
 
 var visual_root: Node3D
 
 
 func _ready() -> void:
 	build_player()
+	if visual_root != null:
+		visual_root.scale = Vector3(1.0, height_scale, 1.0)
 
 
 func make_material(color: Color) -> StandardMaterial3D:
@@ -101,57 +104,80 @@ func build_player() -> void:
 			leg_color
 		)
 
-	# Arms
-	for x in [-0.55, 0.55]:
-		add_box(
-			visual_root,
-			Vector3(x, 1.15, 0),
-			Vector3(0.25, 0.7, 0.28),
-			shirt_color
-		)
+		# TWO-HANDED FIELD HOCKEY GRIP
+	# Local +Z is the front of the player.
+	# Both hands stay attached to the stick when rotated.
 
-
-	# Field hockey stick on the model's right side.
-	# The shaft is angled toward the ball.
 	var stick_color := Color("#D8BB82")
 	var grip_color := Color("#242424")
+	var skin_color := Color("#E8D9BA")
 
+	# Arms extending forward
+	add_box(
+		visual_root,
+		Vector3(-0.36, 1.12, 0.28),
+		Vector3(0.25, 0.64, 0.28),
+		shirt_color
+	)
+
+	add_box(
+		visual_root,
+		Vector3(0.36, 1.00, 0.30),
+		Vector3(0.25, 0.64, 0.28),
+		shirt_color
+	)
+
+	# Stick shaft: positioned between both hands
 	var stick_pivot := Node3D.new()
 	stick_pivot.name = "HockeyStick"
-	stick_pivot.position = Vector3(0.70, 0.92, 0.25)
-	stick_pivot.rotation.z = -0.18
+	stick_pivot.position = Vector3(0.05, 1.0, 0.42)
+	stick_pivot.rotation.z = 0.13
 	visual_root.add_child(stick_pivot)
 
-	# Shaft
 	add_box(
 		stick_pivot,
-		Vector3(0, -0.43, 0),
-		Vector3(0.08, 0.90, 0.09),
+		Vector3(0, -0.47, 0),
+		Vector3(0.075, 1.00, 0.085),
 		stick_color
 	)
 
 	# Upper grip
 	add_box(
 		stick_pivot,
-		Vector3(0, -0.11, 0),
-		Vector3(0.095, 0.24, 0.11),
+		Vector3(0, -0.12, 0),
+		Vector3(0.095, 0.26, 0.11),
 		grip_color
 	)
 
 	# Hooked head
 	add_box(
 		stick_pivot,
-		Vector3(-0.15, -0.85, 0),
-		Vector3(0.37, 0.13, 0.16),
+		Vector3(-0.14, -0.93, 0),
+		Vector3(0.34, 0.12, 0.14),
 		stick_color
 	)
 
-	# Rounded toe
 	add_sphere(
 		stick_pivot,
-		Vector3(-0.30, -0.85, 0),
-		0.075,
+		Vector3(-0.29, -0.93, 0),
+		0.07,
 		stick_color
+	)
+
+	# Left hand at the top of the grip
+	add_box(
+		stick_pivot,
+		Vector3(0, -0.12, 0.02),
+		Vector3(0.20, 0.16, 0.20),
+		skin_color
+	)
+
+	# Right hand lower on the shaft
+	add_box(
+		stick_pivot,
+		Vector3(0, -0.42, 0.02),
+		Vector3(0.20, 0.16, 0.20),
+		skin_color
 	)
 
 

@@ -30,8 +30,10 @@ enum Phase {
 	FINISHED
 }
 
+@onready var goal = get_parent().get_node("Goal3D")
+
 @export_group("Goal")
-@export var goal_z: float = -16.0
+@export var goal_z: float = -18.5
 @export var goal_width: float = 6.0
 @export var goal_height: float = 3.0
 @export var goal_depth: float = 1.8
@@ -81,8 +83,16 @@ var misses: int = 0
 var countdown: float = 0.0
 var status_message: String = ""
 
+func sync_goal_dimensions() -> void:
+	goal_z = goal.global_position.z
+	goal_width = goal.goal_width * goal.scale.x
+	goal_height = goal.goal_height * goal.scale.y
+	goal_depth = goal.goal_depth * goal.scale.z
+	
 
 func _ready() -> void:
+	sync_goal_dimensions()
+
 	hud = PracticeHUD.new()
 	hud.name = "PracticeHUD"
 	add_child(hud)
@@ -297,28 +307,56 @@ func pass_ball() -> void:
 	set_status("SLIP PASS!")
 
 
+
 func shoot_ball(aerial: bool) -> void:
 	if phase != Phase.READY_TO_SHOOT:
 		return
 
 	phase = Phase.SHOOTING
-
 	shot_start = ball.position
+
+	# Inside the goal, just before the backboard.
+	var back_goal_z: float = (
+		goal_z
+		- goal_depth
+		+ ball.ball_radius
+		+ 0.05
+	)
 
 	shot_destination = Vector3(
 		aim_x,
 		0.0,
-		goal_z - goal_depth + 0.1
+		back_goal_z
 	)
 
-	shot_height = (
-		ball.aerial_height if aerial else 0.0
+	shot_height = 0.0
+
+	if aerial:
+		shot_height = ball.aerial_height
+
+	# Check whether the intended shot enters
+	# between the posts and under the crossbar.
+	var expected_result: String = (
+		ShotResolver.check_goal(
+			shot_start,
+			shot_destination,
+			shot_height,
+			ball.ball_radius,
+			goal_z,
+			goal_width,
+			goal_height
+		)
+	)
+
+	var will_hit_back_net: bool = (
+		expected_result == "GOAL!"
 	)
 
 	ball.move_to(
 		shot_destination,
 		ball.shot_speed,
-		shot_height
+		shot_height,
+		will_hit_back_net
 	)
 
 	if game_mode == GameMode.ATTACKER:
@@ -332,6 +370,7 @@ func shoot_ball(aerial: bool) -> void:
 	set_status(
 		"AERIAL SHOT!" if aerial else "LOW SHOT!"
 	)
+
 
 
 func check_keeper_save() -> void:

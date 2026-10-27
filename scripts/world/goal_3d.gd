@@ -5,6 +5,8 @@ extends Node3D
 @export var goal_height: float = 3.0
 @export var goal_depth: float = 1.8
 
+
+
 const POST_SIZE := 0.10
 const BOARD_HEIGHT := 0.50
 
@@ -24,6 +26,11 @@ func add_part(
 
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
+	material.roughness = 0.85
+	var net := Color(0.63, 0.72, 0.75, 0.22)
+
+	if color.a < 1.0:
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 
 	mesh_instance.mesh = mesh
 	mesh_instance.material_override = material
@@ -32,9 +39,9 @@ func add_part(
 
 
 func build_goal() -> void:
-	var white := Color("#F2F5F5")
-	var boards := Color("#D1E0E2")
-	var net := Color("#8BAEAE")
+	var white := Color("#FFFFFF")
+	var boards := Color("#263C45")
+	var net := Color("#A1B8C0")
 
 	var half_width := goal_width / 2.0
 
