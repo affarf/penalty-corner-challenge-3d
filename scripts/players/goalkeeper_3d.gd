@@ -30,10 +30,13 @@ enum SaveState {
 @export var recovery_duration: float = 0.55
 
 @export var ready_z: float = -18.5
-@export var defending_z: float = -1.0
 @export var step_out_speed: float = 5.0
 
+@export var step_out_distance: float = 1.5
+
 var stepping_out: bool = false
+var step_out_target_z: float = 0.0
+
 var player_controlled: bool = true
 var save_state: SaveState = SaveState.READY
 
@@ -68,33 +71,33 @@ func _ready() -> void:
 	camera = get_viewport().get_camera_3d()
 
 
+
 func _physics_process(delta: float) -> void:
-	
+	update_save_state(delta)
+	update_save_visuals(delta)
+
 	if stepping_out:
-		position.z = move_toward(
-			position.z,
-			defending_z,
-			step_out_speed * delta
-		)
-
-		if is_equal_approx(position.z, defending_z):
-			position.z = defending_z
-			stepping_out = false
-
-		# Only keep the automatic movement lock for AI.
-		# Human players can regain control immediately.
-		if not player_controlled:
-			update_save_state(delta)
-			update_save_visuals(delta)
-			return
-
-		if Input.get_vector(
+		# Human movement interrupts the automatic step-out.
+		if player_controlled and Input.get_vector(
 			"move_left",
 			"move_right",
 			"move_up",
 			"move_down"
 		).length() > 0.1:
 			stepping_out = false
+		else:
+			position.z = move_toward(
+				position.z,
+				step_out_target_z,
+				step_out_speed * delta
+			)
+
+			if absf(position.z - step_out_target_z) < 0.01:
+				position.z = step_out_target_z
+				stepping_out = false
+
+			move_velocity = Vector3.ZERO
+			return
 
 	if not player_controlled:
 		move_velocity = Vector3.ZERO
@@ -103,6 +106,9 @@ func _physics_process(delta: float) -> void:
 	if save_state != SaveState.READY:
 		move_velocity = Vector3.ZERO
 		return
+
+	# Keep your existing input_direction code below.
+
 
 	var input_direction := Input.get_vector(
 		"move_left",
@@ -373,9 +379,16 @@ func reset_keeper() -> void:
 	last_move_direction = Vector3.RIGHT
 
 	stepping_out = false
+	step_out_target_z = position.z
 
 	if keeper_rig != null:
 		keeper_rig.reset_pose()
 		
 func release_from_line() -> void:
+	step_out_target_z = clampf(
+		position.z + step_out_distance,
+		min_z,
+		max_z
+	)
+
 	stepping_out = true
