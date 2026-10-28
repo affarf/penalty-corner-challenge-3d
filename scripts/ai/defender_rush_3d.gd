@@ -1,6 +1,6 @@
 extends Node
 
-signal ball_intercepted
+signal ball_intercepted(contact_position: Vector3)
 
 @export_group("Movement")
 @export var first_runner_speed: float = 4.5
@@ -17,6 +17,10 @@ signal ball_intercepted
 @export var intercept_height: float = 0.55
 @export var tackle_cooldown: float = 0.75
 @export var tackle_animation_time: float = 0.40
+
+@export var stationary_tackle_radius: float = 1.25
+
+var shooter_winding_up: bool = false
 
 var defenders: Array[Node3D] = []
 var starting_positions: Array[Vector3] = []
@@ -75,6 +79,7 @@ func set_goalkeeper(keeper_node: Node3D) -> void:
 	goalkeeper = keeper_node
 
 func reset_runners() -> void:
+	shooter_winding_up = false
 	active = false
 	interception_enabled = false
 
@@ -133,6 +138,7 @@ func enable_interceptions() -> void:
 	active = true
 
 func stop_runners() -> void:
+	shooter_winding_up = false
 	active = false
 	interception_enabled = false
 
@@ -254,7 +260,7 @@ func calculate_separation(
 	return push
 
 func try_tackle(i: int) -> void:
-	if not ball.moving:
+	if not ball.moving and not shooter_winding_up:
 		return
 
 	if tackle_timers[i] > 0.0 or tackling[i]:
@@ -276,7 +282,12 @@ func try_tackle(i: int) -> void:
 		Vector2(ball.position.x, ball.position.z)
 	)
 
-	if distance > tackle_trigger_radius:
+	var trigger_radius: float = tackle_trigger_radius
+
+	if not ball.moving:
+		trigger_radius = stationary_tackle_radius
+
+	if distance > trigger_radius:
 		return
 
 	tackling[i] = true
@@ -294,10 +305,8 @@ func try_tackle(i: int) -> void:
 
 	defender.play_hockey_action("tackle")
 
-func _on_tackle_contact(
-	action: String,
-	i: int
-) -> void:
+
+func _on_tackle_contact(action: String, i: int) -> void:
 	if action != "tackle":
 		return
 
@@ -311,7 +320,11 @@ func _on_tackle_contact(
 	tackling[i] = false
 	tackle_action_timers[i] = 0.0
 
-	if not ball.moving:
+	var stationary_challenge: bool = (
+		shooter_winding_up and not ball.moving
+	)
+
+	if not ball.moving and not stationary_challenge:
 		return
 
 	var ball_bottom: float = (
@@ -328,34 +341,55 @@ func _on_tackle_contact(
 		defender.position.z
 	)
 
-	var ball_start := Vector2(
-		tackle_ball_starts[i].x,
-		tackle_ball_starts[i].z
-	)
+	var contact_position: Vector3 = ball.position
+	var distance: float = 0.0
 
-	var ball_end := Vector2(
-		ball.position.x,
-		ball.position.z
-	)
-
-	# Check the path travelled during the animation.
-	var closest_point: Vector2 = (
-		Geometry2D.get_closest_point_to_segment(
-			defender_point,
-			ball_start,
-			ball_end
+	if stationary_challenge:
+		distance = defender_point.distance_to(
+			Vector2(ball.position.x, ball.position.z)
 		)
-	)
+	else:
+		var ball_start := Vector2(
+			tackle_ball_starts[i].x,
+			tackle_ball_starts[i].z
+		)
 
-	var distance: float = (
-		defender_point.distance_to(closest_point)
-	)
+		var ball_end := Vector2(
+			ball.position.x,
+			ball.position.z
+		)
 
-	if distance <= tackle_contact_radius:
+		var closest_point := (
+			Geometry2D.get_closest_point_to_segment(
+				defender_point,
+				ball_start,
+				ball_end
+			)
+		)
+
+		distance = defender_point.distance_to(
+			closest_point
+		)
+
+		contact_position.x = closest_point.x
+		contact_position.z = closest_point.y
+
+	var allowed_radius: float = tackle_contact_radius
+
+	if stationary_challenge:
+		allowed_radius = stationary_tackle_radius
+
+	if distance <= allowed_radius:
 		print("Defender ", i + 1, " BLOCKED!")
 
 		active = false
 		interception_enabled = false
-		ball_intercepted.emit()
+		shooter_winding_up = false
+
+		ball_intercepted.emit(contact_position)
 	else:
 		print("Defender ", i + 1, " missed tackle")
+
+
+func set_shooter_windup(active_windup: bool) -> void:
+	shooter_winding_up = active_windup

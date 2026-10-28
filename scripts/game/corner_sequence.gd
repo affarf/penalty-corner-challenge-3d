@@ -15,6 +15,7 @@ const ShotResolver = preload(
 )
 signal injection_released
 signal pass_released
+signal shooter_windup_changed(is_winding_up: bool)
 
 enum Phase {
 	IDLE,
@@ -140,6 +141,8 @@ func cancel() -> void:
 
 	if ball != null:
 		ball.stop_ball()
+		
+	shooter_windup_changed.emit(false)
 
 
 func request_pass() -> void:
@@ -167,6 +170,7 @@ func request_shot(aerial: bool) -> void:
 		return
 
 	phase = Phase.SHOOTING
+	shooter_windup_changed.emit(true)
 
 	shot_height = (
 		ball.aerial_height if aerial else 0.0
@@ -324,6 +328,8 @@ func _on_shooter_contact(action: String) -> void:
 	if phase != Phase.SHOOTING:
 		return
 
+	shooter_windup_changed.emit(false)
+
 	# Prevent another contact from launching a second shot.
 	if ball.moving:
 		return
@@ -375,72 +381,47 @@ func _on_shooter_contact(action: String) -> void:
 
 
 
-func handle_defender_interception() -> void:
+
+func handle_defender_interception(
+	contact_position: Vector3
+) -> void:
 	if phase != Phase.PASSING and phase != Phase.SHOOTING:
 		return
 
-	if not ball.moving:
-		return
+	# During a shot windup, the ball isn't moving yet.
+	var blocked_pass: bool = (phase == Phase.PASSING)
 
-	var contact_position: Vector3 = ball.position
+	# End the corner before starting the rebound.
+	phase = Phase.FINISHED
+	action_timer = 0.0
+	shooter_windup_changed.emit(false)
 
-	# Choose the clearance direction.
-	# Positive Z moves away from our goal.
-	var side: float = 1.0
+	ball.stop_ball()
 
-	if contact_position.x > 0.0:
-		side = -1.0
+	# Move the ball to the approximate tackle contact point.
+	contact_position.y = 0.0
+	ball.position = contact_position
+
+	# Send the ball away from the goal.
+	# Positive Z points toward the pitch.
+	var side: float = (
+		-1.0 if contact_position.x > 0.0 else 1.0
+	)
 
 	var rebound_direction := Vector3(
-		side * 0.65,
+		side * 0.7,
 		0.0,
 		1.0
 	).normalized()
 
-	# Add a slight variation so every
-	# interception doesn't look identical.
-	rebound_direction.x += randf_range(-0.12, 0.12)
-	rebound_direction = rebound_direction.normalized()
-
-	var rebound_distance: float = randf_range(
-		2.5,
-		4.0
-	)
-
 	var rebound_target: Vector3 = (
-		contact_position
-		+ rebound_direction * rebound_distance
+		contact_position + rebound_direction * 3.2
 	)
 
-	# Keep the ball inside our arena.
-	rebound_target.x = clampf(
-		rebound_target.x,
-		-11.0,
-		11.0
-	)
-
-	rebound_target.z = clampf(
-		rebound_target.z,
-		-18.0,
-		5.0
-	)
-
-	# End the active play before moving the
-	# ball, preventing the rebound from being
-	# interpreted as another shot or pass.
-	
-	var blocked_pass: bool = (
-	phase == Phase.PASSING )
-
-	phase = Phase.FINISHED
-	action_timer = 0.0
-
-	ball.stop_ball()
-
-	# Play a short ground-level rebound.
+	# The rebound is a new movement, not the original pass.
 	ball.move_to(
 		rebound_target,
-		10.0,
+		9.0,
 		0.0
 	)
 

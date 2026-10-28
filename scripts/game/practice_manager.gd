@@ -105,6 +105,10 @@ func _ready() -> void:
 	sequence.pass_released.connect(
 		defender_rush.enable_interceptions
 	)
+	
+	sequence.shooter_windup_changed.connect(
+		defender_rush.set_shooter_windup
+	)
 
 	defender_rush.ball_intercepted.connect(
 		sequence.handle_defender_interception
