@@ -8,8 +8,9 @@ signal ball_intercepted(contact_position: Vector3)
 @export var coverage_speed: float = 2.8
 
 @export_group("Spacing")
-@export var minimum_spacing: float = 1.0
-@export var separation_strength: float = 6.0
+@export var minimum_spacing: float = 1.45
+@export var separation_strength: float = 8.0
+@export var attacker_buffer: float = 1.35
 
 @export_group("Tackling")
 @export var tackle_trigger_radius: float = 3.2
@@ -213,7 +214,18 @@ func update_defender(i: int, delta: float) -> void:
 
 	defender.position += movement * delta
 	defender.position.y = starting_positions[i].y
+	
+	defender.position = keep_distance_from_attacker(
+	defender.position,
+	stopper.position,
+	attacker_buffer
+	)
 
+	defender.position = keep_distance_from_attacker(
+		defender.position,
+		shooter.position,
+		attacker_buffer
+	)
 	var moved: float = (
 		defender.position.distance_to(previous_position)
 	)
@@ -397,3 +409,18 @@ func _on_tackle_contact(action: String, i: int) -> void:
 
 func set_shooter_windup(active_windup: bool) -> void:
 	shooter_winding_up = active_windup
+
+func keep_distance_from_attacker(
+	defender_pos: Vector3,
+	attacker_pos: Vector3,
+	buffer: float
+) -> Vector3:
+	var offset := defender_pos - attacker_pos
+	offset.y = 0.0
+
+	var distance := offset.length()
+
+	if distance < buffer and distance > 0.001:
+		return attacker_pos + offset.normalized() * buffer
+
+	return defender_pos

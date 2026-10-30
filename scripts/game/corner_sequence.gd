@@ -31,11 +31,12 @@ var phase: Phase = Phase.IDLE
 var automatic_attack: bool = false
 var ai_keeper_enabled: bool = false
 
-var ball
-var injector
-var stopper
-var shooter
-var goalkeeper
+var ball: Node3D
+var injector: Node3D
+var stopper: Node3D
+var shooter: Node3D
+var goalkeeper: Node3D
+var defenders: Array[Node3D] = []
 
 var goalkeeper_ai = GoalkeeperAI.new()
 
@@ -347,6 +348,10 @@ func _on_shooter_contact(action: String) -> void:
 	# Prevent another contact from launching a second shot.
 	if ball.moving:
 		return
+	
+	if shooter_is_under_pressure():
+		block_shot_before_release()
+		return
 
 	shot_start = ball.position
 
@@ -443,3 +448,62 @@ func handle_defender_interception(
 		corner_finished.emit("INTERCEPTED!")
 	else:
 		corner_finished.emit("BLOCK!")
+
+func set_defenders(players: Array[Node3D]) -> void:
+	defenders = players
+
+func shooter_is_under_pressure() -> bool:
+	for defender in defenders:
+		var distance := Vector2(
+			defender.position.x,
+			defender.position.z
+		).distance_to(
+			Vector2(
+				shooter.position.x,
+				shooter.position.z
+			)
+		)
+
+		if distance <= 1.35:
+			return true
+
+	return false
+	
+
+func block_shot_before_release() -> void:
+	var contact_position: Vector3 = ball.position
+
+	var side: float = 1.0
+	if contact_position.x > shooter.position.x:
+		side = -1.0
+
+	var rebound_direction: Vector3 = Vector3(
+		side * 0.7,
+		0.0,
+		1.0
+	).normalized()
+
+	var rebound_target: Vector3 = (
+		contact_position + rebound_direction * 3.2
+	)
+
+	rebound_target.x = clampf(
+		rebound_target.x, -11.0, 11.0
+	)
+	rebound_target.z = clampf(
+		rebound_target.z, -18.0, 5.0
+	)
+
+	phase = Phase.FINISHED
+	action_timer = 0.0
+	shooter_windup_changed.emit(false)
+
+	ball.stop_ball()
+
+	ball.move_to(
+		rebound_target,
+		10.0,
+		0.0
+	)
+
+	corner_finished.emit("BLOCK!")

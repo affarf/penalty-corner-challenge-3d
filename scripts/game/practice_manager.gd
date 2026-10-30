@@ -87,6 +87,7 @@ func _ready() -> void:
 		attacker2,
 		ball
 	)
+	sequence.set_defenders(defenders)
 
 	defender_rush.set_goalkeeper(goalkeeper)
 	defender_rush.goal_z = goal.global_position.z
