@@ -21,7 +21,7 @@ signal ball_intercepted(contact_position: Vector3)
 @export var stationary_tackle_radius: float = 1.25
 
 var shooter_winding_up: bool = false
-
+var allow_tackles: bool = true
 var defenders: Array[Node3D] = []
 var starting_positions: Array[Vector3] = []
 var targets: Array[Vector3] = []
@@ -134,6 +134,10 @@ func release() -> void:
 	)
 
 func enable_interceptions() -> void:
+	if not allow_tackles:
+		interception_enabled = false
+		return
+
 	interception_enabled = true
 	active = true
 

@@ -7,7 +7,6 @@ const CornerSequence = preload(
 const PracticeHUD = preload(
 	"res://scripts/game/practice_hud.gd"
 )
-
 const DefenderRush = preload(
 	"res://scripts/ai/defender_rush_3d.gd"
 )
@@ -15,7 +14,8 @@ const DefenderRush = preload(
 enum GameMode {
 	MENU,
 	KEEPER,
-	ATTACKER
+	ATTACKER,
+	AI_VS_AI
 }
 
 @export_group("Insertion")
@@ -41,9 +41,10 @@ enum GameMode {
 var sequence
 var hud
 var defender_rush
-var game_mode: GameMode = GameMode.MENU
-var round_number: int = 0
 
+var game_mode: GameMode = GameMode.MENU
+
+var round_number: int = 0
 var goals: int = 0
 var saves: int = 0
 var misses: int = 0
@@ -52,14 +53,11 @@ var round_timer: float = 0.0
 var status_message: String = ""
 
 
-
 func _ready() -> void:
-	# 1. Create HUD
 	hud = PracticeHUD.new()
 	hud.name = "PracticeHUD"
 	add_child(hud)
 
-	# 2. Create CornerSequence
 	sequence = CornerSequence.new()
 	sequence.name = "CornerSequence"
 	add_child(sequence)
@@ -72,7 +70,6 @@ func _ready() -> void:
 		goalkeeper
 	)
 
-	# 3. Create DefenderRush BEFORE connecting signals
 	defender_rush = DefenderRush.new()
 	defender_rush.name = "DefenderRush"
 	add_child(defender_rush)
@@ -90,11 +87,10 @@ func _ready() -> void:
 		attacker2,
 		ball
 	)
-	
+
 	defender_rush.set_goalkeeper(goalkeeper)
 	defender_rush.goal_z = goal.global_position.z
 
-	# 4. Connect signals
 	sequence.status_changed.connect(set_status)
 	sequence.corner_finished.connect(_on_corner_finished)
 
@@ -105,18 +101,20 @@ func _ready() -> void:
 	sequence.pass_released.connect(
 		defender_rush.enable_interceptions
 	)
-	
-	sequence.shooter_windup_changed.connect(
-		defender_rush.set_shooter_windup
-	)
 
 	defender_rush.ball_intercepted.connect(
 		sequence.handle_defender_interception
 	)
 
-	# 5. Display main menu
-	show_menu()
+	# Keep this only if you added the windup signals
+	# to BOTH CornerSequence and DefenderRush.
+	if sequence.has_signal("shooter_windup_changed"):
+		if defender_rush.has_method("set_shooter_windup"):
+			sequence.shooter_windup_changed.connect(
+				defender_rush.set_shooter_windup
+			)
 
+	show_menu()
 
 
 func _process(delta: float) -> void:
@@ -145,16 +143,17 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		match event.keycode:
 			KEY_1:
 				start_mode(GameMode.KEEPER)
-
 			KEY_2:
 				start_mode(GameMode.ATTACKER)
-
+			KEY_3:
+				start_mode(GameMode.AI_VS_AI)
 		return
 
 	if event.keycode == KEY_R:
 		begin_round()
 		return
 
+	# No manual attacking controls in AI Mode.
 	if game_mode != GameMode.ATTACKER:
 		return
 
@@ -192,13 +191,15 @@ func show_menu() -> void:
 
 	sequence.cancel()
 	defender_rush.reset_runners()
+
 	goalkeeper.player_controlled = false
 	goalkeeper.reset_keeper()
 
 	set_status(
 		"PENALTY CORNER CHALLENGE 3D\n\n"
 		+ "1 - KEEPER MODE\n"
-		+ "2 - ATTACKER MODE\n\n"
+		+ "2 - ATTACKER MODE\n"
+		+ "3 - AI VS AI MODE\n\n"
 		+ "Choose a mode."
 	)
 
@@ -210,26 +211,42 @@ func begin_round() -> void:
 	round_number += 1
 	round_timer = 0.0
 
-	# Use the goal scene's actual current dimensions.
+	# Read the dimensions and positioning you set
+	# in the actual Godot scene.
 	sequence.goal_z = goal.global_position.z
 	sequence.goal_width = goal.goal_width * goal.scale.x
 	sequence.goal_height = goal.goal_height * goal.scale.y
 	sequence.goal_depth = goal.goal_depth * goal.scale.z
 
-	# Preserve your customized corner coordinates.
 	sequence.injection_position = Vector3(
-		injection_x, 0.0, injection_z
+		injection_x,
+		0.0,
+		injection_z
 	)
 
 	sequence.injection_speed = injection_speed
 	sequence.ai_pass_delay = ai_pass_delay
 	sequence.ai_shot_delay = ai_shot_delay
 	sequence.save_depth = keeper_save_depth
-	
+
+	# Run the defenders in all three modes.
+	# Disable tackling only in AI vs AI Mode.
 	defender_rush.reset_runners()
+	defender_rush.allow_tackles = (
+		game_mode != GameMode.AI_VS_AI
+	)
+
+	var automatic_attack: bool = (
+		game_mode != GameMode.ATTACKER
+	)
+
+	var ai_goalkeeper: bool = (
+		game_mode != GameMode.KEEPER
+	)
 
 	sequence.start_corner(
-		game_mode == GameMode.KEEPER
+		automatic_attack,
+		ai_goalkeeper
 	)
 
 	refresh_hud()
@@ -237,6 +254,7 @@ func begin_round() -> void:
 
 func _on_corner_finished(result: String) -> void:
 	defender_rush.stop_runners()
+
 	match result:
 		"GOAL!":
 			goals += 1
@@ -246,8 +264,8 @@ func _on_corner_finished(result: String) -> void:
 
 		"MISS!":
 			misses += 1
-		
-		"BLOCK!":
+
+		"BLOCK!", "INTERCEPTED!":
 			saves += 1
 
 	set_status(result + "\nNext round shortly.")
@@ -266,11 +284,15 @@ func refresh_hud() -> void:
 
 	var mode_name := "MENU"
 
-	if game_mode == GameMode.KEEPER:
-		mode_name = "KEEPER MODE"
+	match game_mode:
+		GameMode.KEEPER:
+			mode_name = "KEEPER MODE"
 
-	elif game_mode == GameMode.ATTACKER:
-		mode_name = "ATTACKER MODE"
+		GameMode.ATTACKER:
+			mode_name = "ATTACKER MODE"
+
+		GameMode.AI_VS_AI:
+			mode_name = "AI VS AI MODE"
 
 	hud.display(
 		mode_name,

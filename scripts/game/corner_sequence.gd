@@ -29,6 +29,7 @@ enum Phase {
 
 var phase: Phase = Phase.IDLE
 var automatic_attack: bool = false
+var ai_keeper_enabled: bool = false
 
 var ball
 var injector
@@ -77,12 +78,13 @@ func setup(
 	ball.movement_finished.connect(_on_ball_finished)
 
 
+
 func _process(delta: float) -> void:
 	if phase == Phase.IDLE or phase == Phase.FINISHED:
 		return
 
-	# AI keeper follows the attacking play before shooting.
-	if not automatic_attack:
+	# AI goalkeeper tracks the attack.
+	if ai_keeper_enabled:
 		if phase in [
 			Phase.INSERTING,
 			Phase.READY_TO_PASS,
@@ -95,9 +97,9 @@ func _process(delta: float) -> void:
 				delta
 			)
 
-	# Both human and AI use the same save resolution.
+	# AI goalkeeper reacts when the actual shot starts.
 	if phase == Phase.SHOOTING and ball.moving:
-		if not automatic_attack:
+		if ai_keeper_enabled:
 			goalkeeper_ai.update(
 				goalkeeper,
 				ball,
@@ -106,6 +108,7 @@ func _process(delta: float) -> void:
 
 		check_save()
 
+	# Automatic attackers handle passing and shooting.
 	if action_timer > 0.0:
 		action_timer -= delta
 
@@ -114,16 +117,26 @@ func _process(delta: float) -> void:
 			run_automatic_action()
 
 
-func start_corner(auto_attack: bool) -> void:
+
+
+func start_corner(
+	auto_attack: bool,
+	use_ai_keeper: bool = false
+) -> void:
 	cancel()
 
 	automatic_attack = auto_attack
+	ai_keeper_enabled = use_ai_keeper
+
 	aim_x = 0.0
 	shot_height = 0.0
 
 	goalkeeper_ai.reset()
 	goalkeeper.reset_keeper()
-	goalkeeper.player_controlled = automatic_attack
+
+	# In AI Mode, nobody controls the goalkeeper.
+	# In Keeper Mode, the human controls it.
+	goalkeeper.player_controlled = not ai_keeper_enabled
 
 	ball.reset_ball(injection_position)
 
@@ -132,6 +145,7 @@ func start_corner(auto_attack: bool) -> void:
 
 	status_changed.emit("INJECTION!")
 	injector.play_hockey_action("inject")
+
 
 
 func cancel() -> void:
@@ -366,7 +380,7 @@ func _on_shooter_contact(action: String) -> void:
 		expected_result == "GOAL!"
 	)
 
-	if not automatic_attack:
+	if ai_keeper_enabled:
 		goalkeeper_ai.start_shot(
 			shot_start,
 			shot_destination,
